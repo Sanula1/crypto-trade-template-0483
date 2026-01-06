@@ -71,14 +71,15 @@ const SpecialVisits = () => {
 
                   {/* Content */}
                   <div className="p-6">
-                    <div className="flex items-center gap-2 text-accent mb-2">
-                      <MapPin size={16} />
-                      <span className="text-sm font-medium">{visit.sub_heading}</span>
-                    </div>
-                    
-                    <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors">
+                    <h3 className="text-xl font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
                       {visit.name}
                     </h3>
+                    
+                    {visit.sub_heading && (
+                      <p className="text-secondary font-medium text-sm mb-3">
+                        {visit.sub_heading}
+                      </p>
+                    )}
                     
                     <p className="text-muted-foreground text-sm line-clamp-3">
                       {visit.description}
