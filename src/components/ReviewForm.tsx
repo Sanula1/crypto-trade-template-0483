@@ -173,9 +173,13 @@ const ReviewForm = () => {
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder={visitsLoading ? "Loading destinations..." : "Select destination"} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card border-border">
                 {specialVisits.map((visit) => (
-                  <SelectItem key={visit.name} value={visit.name}>
+                  <SelectItem 
+                    key={visit.name} 
+                    value={visit.name}
+                    className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
+                  >
                     {visit.name}
                   </SelectItem>
                 ))}
