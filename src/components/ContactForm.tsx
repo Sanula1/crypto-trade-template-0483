@@ -153,7 +153,9 @@ const ContactForm = () => {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Phone</p>
-                    <p className="text-muted-foreground">{content['contact_phone'] || '+94 77 123 4567'}</p>
+                    <a href="tel:+94766776015" className="text-muted-foreground hover:text-primary transition-colors">
+                      +94 76 677 6015
+                    </a>
                   </div>
                 </div>
 
@@ -163,7 +165,9 @@ const ContactForm = () => {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Email</p>
-                    <p className="text-muted-foreground">{content['contact_email'] || 'hello@srilanka.travel'}</p>
+                    <a href="mailto:Kalumprasad1500@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">
+                      Kalumprasad1500@gmail.com
+                    </a>
                   </div>
                 </div>
 
