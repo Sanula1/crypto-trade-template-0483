@@ -108,8 +108,8 @@ const VideoSlider = () => {
       </div>
 
       {/* Slider thumbnails */}
-      <div className="mt-10">
-        <div className="relative flex items-center justify-center h-[260px] md:h-[320px]">
+      <div className="mt-6">
+        <div className="relative flex items-center justify-center h-[180px] md:h-[220px]">
           {videos.map((video, index) => {
             const isActive = activeIndex === index;
             const isPrev = (activeIndex - 1 + videos.length) % videos.length === index;
@@ -137,7 +137,7 @@ const VideoSlider = () => {
               <button
                 key={video.id}
                 type="button"
-                className="absolute w-[70%] md:w-[58%] aspect-video cursor-pointer transition-all duration-500 ease-out text-left"
+                className="absolute w-[55%] md:w-[45%] aspect-video cursor-pointer transition-all duration-500 ease-out text-left"
                 style={{ transform, zIndex, opacity }}
                 onClick={() => setActiveIndex(index)}
                 aria-label={`Select ${video.title}`}

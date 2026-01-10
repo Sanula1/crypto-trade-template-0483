@@ -57,32 +57,32 @@ const Index = () => {
       <ScrollProgress />
 
       {/* Hero Section - First slide */}
-      <section className="sticky top-0 z-[1]">
+      <section className="sticky top-0 z-[1] h-screen overflow-hidden">
         <HeroSection />
       </section>
 
       {/* Horizontal Gallery - Second slide */}
-      <section id="work" className="sticky top-0 z-[2] bg-background">
+      <section id="work" className="sticky top-0 z-[2] min-h-screen overflow-y-auto bg-background">
         <HorizontalGallery />
       </section>
 
       {/* Video Section - Third slide */}
-      <section id="video" className="sticky top-0 z-[3] bg-background">
+      <section id="video" className="sticky top-0 z-[3] min-h-screen overflow-y-auto bg-background">
         <ShowreelSection />
       </section>
 
       {/* Portfolio Grid - Fourth slide */}
-      <section className="sticky top-0 z-[4] bg-background">
+      <section className="sticky top-0 z-[4] min-h-screen overflow-y-auto bg-background">
         <PortfolioGrid />
       </section>
 
       {/* About Section - Fifth slide */}
-      <section id="about" className="sticky top-0 z-[5] bg-background">
+      <section id="about" className="sticky top-0 z-[5] min-h-screen overflow-y-auto bg-background">
         <AboutSection />
       </section>
 
       {/* Contact Section - Sixth slide */}
-      <section id="contact" className="sticky top-0 z-[6] bg-background">
+      <section id="contact" className="sticky top-0 z-[6] min-h-screen overflow-y-auto bg-background">
         <ContactSection />
       </section>
 
