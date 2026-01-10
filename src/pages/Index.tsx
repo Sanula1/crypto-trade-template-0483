@@ -43,7 +43,7 @@ const Index = () => {
   }
 
   return (
-    <div className="relative bg-background text-foreground min-h-screen">
+    <div className="relative bg-background text-foreground">
       {/* Film grain overlay */}
       <div className="film-grain" />
       
@@ -56,43 +56,40 @@ const Index = () => {
       {/* Scroll Progress */}
       <ScrollProgress />
 
-      {/* Main Content Container */}
-      <main className="relative z-[1]">
-        {/* Hero Section */}
-        <section>
-          <HeroSection />
-        </section>
+      {/* Hero Section - First slide */}
+      <section className="sticky top-0 z-[1]">
+        <HeroSection />
+      </section>
 
-        {/* Horizontal Gallery */}
-        <section id="work" className="bg-background">
-          <HorizontalGallery />
-        </section>
+      {/* Horizontal Gallery - Second slide */}
+      <section id="work" className="sticky top-0 z-[2] bg-background">
+        <HorizontalGallery />
+      </section>
 
-        {/* Video Section */}
-        <section id="video" className="bg-background">
-          <ShowreelSection />
-        </section>
+      {/* Video Section - Third slide */}
+      <section id="video" className="sticky top-0 z-[3] bg-background">
+        <ShowreelSection />
+      </section>
 
-        {/* Portfolio Grid */}
-        <section className="bg-background">
-          <PortfolioGrid />
-        </section>
+      {/* Portfolio Grid - Fourth slide */}
+      <section className="sticky top-0 z-[4] bg-background">
+        <PortfolioGrid />
+      </section>
 
-        {/* About Section */}
-        <section id="about" className="bg-background">
-          <AboutSection />
-        </section>
+      {/* About Section - Fifth slide */}
+      <section id="about" className="sticky top-0 z-[5] bg-background">
+        <AboutSection />
+      </section>
 
-        {/* Contact Section */}
-        <section id="contact" className="bg-background">
-          <ContactSection />
-        </section>
+      {/* Contact Section - Sixth slide */}
+      <section id="contact" className="sticky top-0 z-[6] bg-background">
+        <ContactSection />
+      </section>
 
-        {/* Footer */}
-        <footer className="bg-background">
-          <Footer />
-        </footer>
-      </main>
+      {/* Footer - Last slide - relative to break sticky chain */}
+      <section className="relative z-[8] bg-background">
+        <Footer />
+      </section>
     </div>
   );
 };
