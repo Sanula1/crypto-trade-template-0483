@@ -74,11 +74,11 @@ const PortfolioGrid = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative py-32 px-6 md:px-12 lg:px-24 bg-background"
+      className="relative py-16 md:py-24 px-6 md:px-12 lg:px-24 bg-background min-h-screen flex flex-col justify-center"
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto w-full">
         {/* Section Header */}
-        <div className="portfolio-title mb-20">
+        <div className="portfolio-title mb-12">
           <span className="text-primary text-sm uppercase tracking-[0.3em] font-body mb-4 block">
             Portfolio
           </span>
