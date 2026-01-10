@@ -46,9 +46,9 @@ const HorizontalGallery = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative min-h-screen bg-background flex flex-col justify-center py-12">
+    <section ref={sectionRef} className="relative min-h-screen bg-background flex flex-col">
       {/* Section Title */}
-      <div className="py-8 md:py-12 px-6 md:px-12 lg:px-24 max-w-7xl mx-auto w-full">
+      <div className="py-16 md:py-24 px-6 md:px-12 lg:px-24">
         <span className="text-primary text-sm uppercase tracking-[0.3em] font-body mb-4 block">
           Selected Works
         </span>
@@ -58,16 +58,16 @@ const HorizontalGallery = () => {
       </div>
 
       {/* Horizontal Scrollable Gallery */}
-      <div ref={triggerRef} className="overflow-x-auto overflow-y-hidden pb-8">
+      <div ref={triggerRef} className="flex-1 overflow-x-auto overflow-y-hidden pb-12">
         <div
           ref={containerRef}
-          className="flex items-stretch gap-6 md:gap-8 px-6 md:px-12 lg:px-24"
+          className="flex items-stretch h-full gap-6 md:gap-8 px-6 md:px-12 lg:px-24"
           style={{ width: 'max-content' }}
         >
           {portfolioImages.map((item, index) => (
             <div
               key={index}
-              className="portfolio-item relative flex-shrink-0 h-[40vh] md:h-[50vh] w-[70vw] md:w-[45vw] lg:w-[30vw] rounded-lg overflow-hidden group"
+              className="portfolio-item relative flex-shrink-0 h-[50vh] md:h-[60vh] w-[70vw] md:w-[45vw] lg:w-[30vw] rounded-lg overflow-hidden group"
             >
               <img
                 src={item.src}

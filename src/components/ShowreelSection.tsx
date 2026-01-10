@@ -47,7 +47,7 @@ const ShowreelSection = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative min-h-screen w-full bg-background overflow-visible py-20 flex flex-col justify-center"
+      className="relative min-h-screen w-full bg-background overflow-hidden py-20"
     >
       {/* Background Effects */}
       <div className="absolute inset-0 z-0">
@@ -62,7 +62,7 @@ const ShowreelSection = () => {
       {/* Content */}
       <div
         ref={contentRef}
-        className="relative z-20 flex flex-col items-center justify-center px-6 max-w-7xl mx-auto w-full"
+        className="relative z-20 flex flex-col items-center justify-center h-full px-6"
       >
         <span className="text-primary text-sm uppercase tracking-[0.3em] font-body mb-6">
           Featured Work
