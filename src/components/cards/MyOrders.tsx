@@ -1,28 +1,20 @@
 /**
- * MyOrders - View and manage my card orders
+ * MyOrders - View and manage my card orders with MUI StickyHeadTable
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Package,
   CreditCard,
@@ -53,6 +45,22 @@ import { toast } from '@/hooks/use-toast';
 import SubmitPaymentDialog from './SubmitPaymentDialog';
 import OrderDetailsDialog from './OrderDetailsDialog';
 
+interface Column {
+  id: 'orderId' | 'card' | 'orderDate' | 'status' | 'price' | 'actions';
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+}
+
+const columns: readonly Column[] = [
+  { id: 'orderId', label: 'Order ID', minWidth: 100 },
+  { id: 'card', label: 'Card', minWidth: 170 },
+  { id: 'orderDate', label: 'Order Date', minWidth: 120 },
+  { id: 'status', label: 'Status', minWidth: 150 },
+  { id: 'price', label: 'Price', minWidth: 100, align: 'right' },
+  { id: 'actions', label: 'Actions', minWidth: 120, align: 'right' },
+];
+
 const MyOrders: React.FC = () => {
   const [orders, setOrders] = useState<UserIdCardOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +69,8 @@ const MyOrders: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<UserIdCardOrder | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchOrders = async (forceRefresh = false) => {
     try {
@@ -97,6 +107,15 @@ const MyOrders: React.FC = () => {
   const handleSubmitPayment = (order: UserIdCardOrder) => {
     setSelectedOrder(order);
     setPaymentDialogOpen(true);
+  };
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(+event.target.value);
+    setPage(0);
   };
 
   const getStatusIcon = (status: OrderStatus) => {
@@ -155,98 +174,163 @@ const MyOrders: React.FC = () => {
         </Select>
       </div>
 
-      {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Orders ({orders.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-4">
-                  <Skeleton className="h-12 w-12 rounded" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-1/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
+      {/* Orders Table - MUI StickyHeadTable */}
+      <Paper sx={{ 
+        width: '100%', 
+        overflow: 'hidden',
+        backgroundColor: 'hsl(var(--card))',
+        border: '1px solid hsl(var(--border))',
+        borderRadius: 'var(--radius)',
+      }}>
+        {loading ? (
+          <div className="p-6 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="h-12 w-12 rounded" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-4 w-1/2" />
                 </div>
-              ))}
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">No Orders Yet</h3>
-              <p className="text-muted-foreground">You haven't placed any orders yet.</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Card</TableHead>
-                  <TableHead>Order Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">#{order.id}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{order.card?.cardName || 'Unknown Card'}</p>
-                          <Badge variant="outline" className="text-xs">
-                            {order.cardType}
-                          </Badge>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDate(order.orderDate)}</TableCell>
-                    <TableCell>
-                      <Badge className={`${orderStatusColors[order.orderStatus]} flex items-center gap-1 w-fit`}>
-                        {getStatusIcon(order.orderStatus)}
-                        {orderStatusLabels[order.orderStatus]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {order.card ? formatPrice(order.card.price) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetails(order)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {order.orderStatus === OrderStatus.PENDING_PAYMENT && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleSubmitPayment(order)}
-                          >
-                            <Upload className="h-4 w-4 mr-1" />
-                            Pay
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+              </div>
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-12">
+            <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold">No Orders Yet</h3>
+            <p className="text-muted-foreground">You haven't placed any orders yet.</p>
+          </div>
+        ) : (
+          <>
+            <TableContainer sx={{ maxHeight: 440 }}>
+              <Table stickyHeader aria-label="orders table">
+                <TableHead>
+                  <TableRow>
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        align={column.align}
+                        style={{ minWidth: column.minWidth }}
+                        sx={{
+                          backgroundColor: 'hsl(var(--muted))',
+                          color: 'hsl(var(--foreground))',
+                          fontWeight: 'bold',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}
+                      >
+                        {column.label}
+                      </TableCell>
+                    ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHead>
+                <TableBody>
+                  {orders
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((order) => (
+                      <TableRow hover key={order.id} sx={{
+                        '&:hover': {
+                          backgroundColor: 'hsl(var(--muted) / 0.5)',
+                        },
+                      }}>
+                        <TableCell sx={{ 
+                          color: 'hsl(var(--foreground))',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}>
+                          <span className="font-mono text-sm">#{order.id}</span>
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: 'hsl(var(--foreground))',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}>
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{order.card?.cardName || 'Unknown Card'}</p>
+                              <Badge variant="outline" className="text-xs">
+                                {order.cardType}
+                              </Badge>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: 'hsl(var(--foreground))',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}>
+                          {formatDate(order.orderDate)}
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: 'hsl(var(--foreground))',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}>
+                          <Badge className={`${orderStatusColors[order.orderStatus]} flex items-center gap-1 w-fit`}>
+                            {getStatusIcon(order.orderStatus)}
+                            {orderStatusLabels[order.orderStatus]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell align="right" sx={{ 
+                          color: 'hsl(var(--foreground))',
+                          borderBottom: '1px solid hsl(var(--border))',
+                          fontWeight: 600,
+                        }}>
+                          {order.card ? formatPrice(order.card.price) : '-'}
+                        </TableCell>
+                        <TableCell align="right" sx={{ 
+                          color: 'hsl(var(--foreground))',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDetails(order)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {order.orderStatus === OrderStatus.PENDING_PAYMENT && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleSubmitPayment(order)}
+                              >
+                                <Upload className="h-4 w-4 mr-1" />
+                                Pay
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 100]}
+              component="div"
+              count={orders.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              sx={{
+                color: 'hsl(var(--foreground))',
+                borderTop: '1px solid hsl(var(--border))',
+                '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                  color: 'hsl(var(--muted-foreground))',
+                },
+                '& .MuiTablePagination-select': {
+                  color: 'hsl(var(--foreground))',
+                },
+                '& .MuiIconButton-root': {
+                  color: 'hsl(var(--foreground))',
+                },
+                '& .MuiIconButton-root.Mui-disabled': {
+                  color: 'hsl(var(--muted-foreground))',
+                },
+              }}
+            />
+          </>
+        )}
+      </Paper>
 
       {/* Dialogs */}
       <OrderDetailsDialog
