@@ -227,12 +227,19 @@ export const buildSidebarUrl = (
     'institute-users': 'institutes/users',
     'institute-classes': 'institutes/classes',
   };
-  
+
   // Get the actual URL path for the page
   const pagePath = pageToUrlMap[page] || page;
-  
+
+  // Pages that must ALWAYS be global (no institute/class/subject prefix)
+  // These are dedicated top-level routes like "/id-cards".
+  const globalPages = new Set(['id-cards', 'card-demo']);
+  if (globalPages.has(page)) {
+    return `/${pagePath}`;
+  }
+
   let url = '';
-  
+
   // Handle special dashboard case
   if (page === 'dashboard' && !context.childId && !context.organizationId && !context.transportId && !context.instituteId) {
     return '/dashboard';
