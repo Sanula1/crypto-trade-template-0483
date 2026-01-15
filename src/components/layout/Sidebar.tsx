@@ -1546,7 +1546,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const settingsItemsDisplay = [...settingsItems];
 
   // Global shortcut: show "ID Cards" in sidebar for all roles/pages.
-  // (Navigation is handled as a dedicated top-level route: /id-cards)
+  // Insert right after "Profile" in settings section for consistent placement
   const idCardsItem = {
     id: 'id-cards',
     label: 'ID Cards',
@@ -1555,21 +1555,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     alwaysShow: true
   };
 
-  const allLists = [
-    menuItemsDisplay,
-    attendanceItemsDisplay,
-    systemItemsDisplay,
-    myChildrenItemsDisplay,
-    childItemsDisplay,
-    systemPaymentItemsDisplay,
-    paymentItemsDisplay,
-    smsItemsDisplay,
-    settingsItemsDisplay
-  ];
-
-  const hasIdCards = allLists.some(list => list.some(i => i.id === 'id-cards'));
-  if (!hasIdCards) {
-    menuItemsDisplay.push(idCardsItem);
+  // Insert ID Cards after Profile in settingsItemsDisplay
+  const profileIndex = settingsItemsDisplay.findIndex(item => item.id === 'profile');
+  if (profileIndex !== -1) {
+    settingsItemsDisplay.splice(profileIndex + 1, 0, idCardsItem);
+  } else {
+    // Fallback: add at beginning if no profile found
+    settingsItemsDisplay.unshift(idCardsItem);
   }
 
   const activeExists = [
