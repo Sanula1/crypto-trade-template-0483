@@ -1545,6 +1545,33 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const smsItemsDisplay = [...(smsItems || [])];
   const settingsItemsDisplay = [...settingsItems];
 
+  // Global shortcut: show "ID Cards" in sidebar for all roles/pages.
+  // (Navigation is handled as a dedicated top-level route: /id-cards)
+  const idCardsItem = {
+    id: 'id-cards',
+    label: 'ID Cards',
+    icon: IdCard,
+    permission: 'view-dashboard',
+    alwaysShow: true
+  };
+
+  const allLists = [
+    menuItemsDisplay,
+    attendanceItemsDisplay,
+    systemItemsDisplay,
+    myChildrenItemsDisplay,
+    childItemsDisplay,
+    systemPaymentItemsDisplay,
+    paymentItemsDisplay,
+    smsItemsDisplay,
+    settingsItemsDisplay
+  ];
+
+  const hasIdCards = allLists.some(list => list.some(i => i.id === 'id-cards'));
+  if (!hasIdCards) {
+    menuItemsDisplay.push(idCardsItem);
+  }
+
   const activeExists = [
     menuItemsDisplay,
     attendanceItemsDisplay,
