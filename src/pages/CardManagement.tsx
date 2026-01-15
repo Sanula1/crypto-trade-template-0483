@@ -9,10 +9,12 @@ import CardCatalog from '@/components/cards/CardCatalog';
 import MyOrders from '@/components/cards/MyOrders';
 import MyCards from '@/components/cards/MyCards';
 import PageContainer from '@/components/layout/PageContainer';
+import AppLayout from '@/components/layout/AppLayout';
 
 const CardManagement: React.FC = () => {
   return (
-    <PageContainer>
+    <AppLayout currentPage="id-cards">
+      <PageContainer>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">ID Card Management</h1>
         <p className="text-muted-foreground">Order and manage your ID cards</p>
@@ -45,7 +47,8 @@ const CardManagement: React.FC = () => {
           <MyCards />
         </TabsContent>
       </Tabs>
-    </PageContainer>
+      </PageContainer>
+    </AppLayout>
   );
 };
 
