@@ -8,7 +8,8 @@ import {
 
 export const systemAdminUserApi = {
   /**
-   * Create a single family unit
+   * Create a single family unit with optional institute enrollment
+   * Supports nested structure: Institute > Class > Subject
    */
   createFamilyUnit: (data: CreateFamilyUnitRequest): Promise<CreateFamilyUnitResponse> =>
     apiRequest('/admin/users/family-unit', {
@@ -24,6 +25,7 @@ export const systemAdminUserApi = {
     options?: {
       continueOnError?: boolean;
       sendWelcomeNotifications?: boolean;
+      autoActivateEnrollments?: boolean;
     }
   ): Promise<BulkCreateResult> =>
     apiRequest('/admin/users/family-units/bulk', {
@@ -32,6 +34,7 @@ export const systemAdminUserApi = {
         families,
         continueOnError: options?.continueOnError ?? true,
         sendWelcomeNotifications: options?.sendWelcomeNotifications ?? true,
+        autoActivateEnrollments: options?.autoActivateEnrollments ?? true,
       }),
     }),
 
@@ -41,6 +44,7 @@ export const systemAdminUserApi = {
   getIncompleteProfiles: (params?: {
     page?: number;
     limit?: number;
+    profileStatus?: string[];
     createdByAdminId?: string;
   }): Promise<{
     data: IncompleteProfile[];
@@ -52,6 +56,7 @@ export const systemAdminUserApi = {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', String(params.page));
     if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.profileStatus) queryParams.append('profileStatus', params.profileStatus.join(','));
     if (params?.createdByAdminId) queryParams.append('createdByAdminId', params.createdByAdminId);
     return apiRequest(`/admin/users/incomplete-profiles?${queryParams.toString()}`);
   },
