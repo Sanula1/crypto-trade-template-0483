@@ -37,24 +37,17 @@ import {
 } from "recharts";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import {
+  NotificationScope,
+  NotificationStatus,
+  NotificationPriority,
+  NotificationTargetUserType,
+  PushNotification,
+} from "@/lib/notificationEnums";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-interface AdminNotification {
-  id: string;
-  title: string;
-  body: string;
-  scope: 'GLOBAL' | 'INSTITUTE' | 'CLASS' | 'SUBJECT';
-  status: 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'FAILED';
-  priority: 'LOW' | 'NORMAL' | 'HIGH';
-  targetUserTypes: string[];
-  totalRecipients: number;
-  sentCount: number;
-  failedCount: number;
-  readCount: number;
-  createdAt: string | null;
-  sentAt: string | null;
-}
+interface AdminNotification extends PushNotification {}
 
 interface AnalyticsData {
   totalSent: number;

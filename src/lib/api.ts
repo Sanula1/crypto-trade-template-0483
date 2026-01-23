@@ -514,7 +514,19 @@ export const api = {
     actionUrl?: string;
     dataPayload?: Record<string, string>;
     scope: 'GLOBAL' | 'INSTITUTE' | 'CLASS' | 'SUBJECT';
-    targetUserTypes: ('STUDENTS' | 'PARENTS' | 'TEACHERS' | 'ADMINS')[];
+    targetUserTypes: (
+      | 'ALL' 
+      | 'STUDENTS' 
+      | 'TEACHERS' 
+      | 'PARENTS' 
+      | 'ATTENDANCE_MARKERS' 
+      | 'INSTITUTE_ADMINS'
+      | 'USERS_WITHOUT_INSTITUTE'
+      | 'USERS_WITHOUT_PARENT'
+      | 'USERS_WITHOUT_STUDENT'
+      | 'VERIFIED_USERS_ONLY'
+      | 'UNVERIFIED_USERS_ONLY'
+    )[];
     instituteId?: string;
     classId?: string;
     subjectId?: string;
@@ -533,26 +545,34 @@ export const api = {
   getAdminNotifications: (params: {
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
     scope?: 'GLOBAL' | 'INSTITUTE' | 'CLASS' | 'SUBJECT';
-    status?: 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'FAILED';
+    status?: 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'FAILED' | 'CANCELLED';
     instituteId?: string;
     classId?: string;
     subjectId?: string;
     priority?: 'LOW' | 'NORMAL' | 'HIGH';
-    fromDate?: string;
-    toDate?: string;
+    senderId?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
   } = {}) => {
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.append("page", String(params.page));
     if (params.limit) queryParams.append("limit", String(params.limit));
+    if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
     if (params.scope) queryParams.append("scope", params.scope);
     if (params.status) queryParams.append("status", params.status);
     if (params.instituteId) queryParams.append("instituteId", params.instituteId);
     if (params.classId) queryParams.append("classId", params.classId);
     if (params.subjectId) queryParams.append("subjectId", params.subjectId);
     if (params.priority) queryParams.append("priority", params.priority);
-    if (params.fromDate) queryParams.append("fromDate", params.fromDate);
-    if (params.toDate) queryParams.append("toDate", params.toDate);
+    if (params.senderId) queryParams.append("senderId", params.senderId);
+    if (params.search) queryParams.append("search", params.search);
+    if (params.dateFrom) queryParams.append("dateFrom", params.dateFrom);
+    if (params.dateTo) queryParams.append("dateTo", params.dateTo);
     return apiRequest(`/push-notifications/admin?${queryParams.toString()}`);
   },
 
@@ -560,9 +580,15 @@ export const api = {
   getAdminNotificationById: (id: string) =>
     apiRequest(`/push-notifications/admin/${id}`),
 
-  // Send/Resend Notification
+  // Send Notification
   sendPushNotification: (id: string) =>
     apiRequest(`/push-notifications/admin/${id}/send`, {
+      method: "POST",
+    }),
+
+  // Resend Failed Notification
+  resendPushNotification: (id: string) =>
+    apiRequest(`/push-notifications/admin/${id}/resend`, {
       method: "POST",
     }),
 

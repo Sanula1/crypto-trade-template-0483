@@ -58,34 +58,16 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import {
+  NotificationScope,
+  NotificationTargetUserType,
+  NotificationStatus,
+  NotificationPriority,
+  TARGET_USER_TYPE_CONFIG,
+  PushNotification,
+} from "@/lib/notificationEnums";
 
-type NotificationScope = 'GLOBAL' | 'INSTITUTE' | 'CLASS' | 'SUBJECT';
-type NotificationStatus = 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'FAILED';
-type NotificationPriority = 'LOW' | 'NORMAL' | 'HIGH';
-type TargetUserType = 'STUDENTS' | 'PARENTS' | 'TEACHERS' | 'ADMINS';
-
-interface SystemNotification {
-  id: string;
-  title: string;
-  body: string;
-  scope: NotificationScope;
-  status: NotificationStatus;
-  priority: NotificationPriority;
-  targetUserTypes: TargetUserType[];
-  instituteId?: string;
-  institute?: {
-    id: string;
-    name: string;
-  };
-  totalRecipients: number;
-  sentCount: number;
-  failedCount: number;
-  readCount: number;
-  createdAt: string | null;
-  sentAt: string | null;
-}
-
-const targetUserTypeOptions: TargetUserType[] = ['STUDENTS', 'PARENTS', 'TEACHERS', 'ADMINS'];
+interface SystemNotification extends PushNotification {}
 
 const SystemAlerts = () => {
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
@@ -98,9 +80,9 @@ const SystemAlerts = () => {
   const [newNotification, setNewNotification] = useState({
     title: "",
     body: "",
-    scope: "GLOBAL" as NotificationScope,
-    targetUserTypes: ["STUDENTS"] as TargetUserType[],
-    priority: "HIGH" as NotificationPriority,
+    scope: NotificationScope.GLOBAL,
+    targetUserTypes: [NotificationTargetUserType.STUDENTS] as NotificationTargetUserType[],
+    priority: NotificationPriority.HIGH,
     instituteId: "",
   });
 
@@ -148,8 +130,8 @@ const SystemAlerts = () => {
   // Summary statistics
   const stats = useMemo(() => {
     const totalAlerts = notifications.length;
-    const sentAlerts = notifications.filter(n => n.status === 'SENT').length;
-    const pendingAlerts = notifications.filter(n => n.status === 'SCHEDULED' || n.status === 'DRAFT').length;
+    const sentAlerts = notifications.filter(n => n.status === NotificationStatus.SENT).length;
+    const pendingAlerts = notifications.filter(n => n.status === NotificationStatus.SCHEDULED || n.status === NotificationStatus.DRAFT).length;
     const totalRecipients = notifications.reduce((sum, n) => sum + (n.totalRecipients || 0), 0);
     const failedCount = notifications.reduce((sum, n) => sum + (n.failedCount || 0), 0);
     
@@ -158,15 +140,15 @@ const SystemAlerts = () => {
 
   const getStatusBadge = (status: NotificationStatus) => {
     switch (status) {
-      case "SENT":
+      case NotificationStatus.SENT:
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Sent</Badge>;
-      case "SCHEDULED":
+      case NotificationStatus.SCHEDULED:
         return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Scheduled</Badge>;
-      case "DRAFT":
+      case NotificationStatus.DRAFT:
         return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Draft</Badge>;
-      case "SENDING":
+      case NotificationStatus.SENDING:
         return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Sending</Badge>;
-      case "FAILED":
+      case NotificationStatus.FAILED:
         return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Failed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
@@ -175,21 +157,21 @@ const SystemAlerts = () => {
 
   const getPriorityBadge = (priority: NotificationPriority) => {
     switch (priority) {
-      case "HIGH":
+      case NotificationPriority.HIGH:
         return (
           <Badge className="bg-red-100 text-red-800 hover:bg-red-100 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             High
           </Badge>
         );
-      case "NORMAL":
+      case NotificationPriority.NORMAL:
         return (
           <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             Normal
           </Badge>
         );
-      case "LOW":
+      case NotificationPriority.LOW:
         return (
           <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 flex items-center gap-1">
             <Info className="h-3 w-3" />
@@ -203,16 +185,16 @@ const SystemAlerts = () => {
 
   const getScopeIcon = (scope: NotificationScope) => {
     switch (scope) {
-      case "GLOBAL":
+      case NotificationScope.GLOBAL:
         return <Users className="h-4 w-4 text-purple-500" />;
-      case "INSTITUTE":
+      case NotificationScope.INSTITUTE:
         return <Building2 className="h-4 w-4 text-blue-500" />;
       default:
         return <AlertCircle className="h-4 w-4" />;
     }
   };
 
-  const handleTargetTypeChange = (type: TargetUserType, checked: boolean) => {
+  const handleTargetTypeChange = (type: NotificationTargetUserType, checked: boolean) => {
     if (checked) {
       setNewNotification({
         ...newNotification,
@@ -245,7 +227,7 @@ const SystemAlerts = () => {
       return;
     }
 
-    if (newNotification.scope === "INSTITUTE" && !newNotification.instituteId) {
+    if (newNotification.scope === NotificationScope.INSTITUTE && !newNotification.instituteId) {
       toast({
         title: "Validation Error",
         description: "Please select an institute",
@@ -265,7 +247,7 @@ const SystemAlerts = () => {
         sendImmediately: true,
       };
 
-      if (newNotification.scope === "INSTITUTE") {
+      if (newNotification.scope === NotificationScope.INSTITUTE) {
         payload.instituteId = newNotification.instituteId;
       }
 
@@ -275,9 +257,9 @@ const SystemAlerts = () => {
       setNewNotification({
         title: "",
         body: "",
-        scope: "GLOBAL",
-        targetUserTypes: ["STUDENTS"],
-        priority: "HIGH",
+        scope: NotificationScope.GLOBAL,
+        targetUserTypes: [NotificationTargetUserType.STUDENTS],
+        priority: NotificationPriority.HIGH,
         instituteId: "",
       });
       
@@ -453,8 +435,8 @@ const SystemAlerts = () => {
                           <SelectValue placeholder="Select scope" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="GLOBAL">Global (All Users)</SelectItem>
-                          <SelectItem value="INSTITUTE">Institute</SelectItem>
+                          <SelectItem value={NotificationScope.GLOBAL}>Global (All Users)</SelectItem>
+                          <SelectItem value={NotificationScope.INSTITUTE}>Institute</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -468,15 +450,15 @@ const SystemAlerts = () => {
                           <SelectValue placeholder="Select priority" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="LOW">Low</SelectItem>
-                          <SelectItem value="NORMAL">Normal</SelectItem>
-                          <SelectItem value="HIGH">High</SelectItem>
+                          <SelectItem value={NotificationPriority.LOW}>Low</SelectItem>
+                          <SelectItem value={NotificationPriority.NORMAL}>Normal</SelectItem>
+                          <SelectItem value={NotificationPriority.HIGH}>High</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  {newNotification.scope === "INSTITUTE" && (
+                  {newNotification.scope === NotificationScope.INSTITUTE && (
                     <div className="grid gap-2">
                       <Label htmlFor="institute">Institute</Label>
                       <Select
@@ -522,7 +504,9 @@ const SystemAlerts = () => {
                   <div className="grid gap-2">
                     <Label>Target Audience</Label>
                     <div className="grid grid-cols-2 gap-2 border rounded-md p-3">
-                      {targetUserTypeOptions.map((type) => (
+                      {Object.values(NotificationTargetUserType)
+                        .filter(type => TARGET_USER_TYPE_CONFIG[type]?.category === 'basic')
+                        .map((type) => (
                         <div key={type} className="flex items-center space-x-2">
                           <Checkbox
                             id={type}
@@ -533,7 +517,7 @@ const SystemAlerts = () => {
                             htmlFor={type}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {type.charAt(0) + type.slice(1).toLowerCase()}
+                            {TARGET_USER_TYPE_CONFIG[type]?.label || type}
                           </label>
                         </div>
                       ))}

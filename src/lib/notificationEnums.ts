@@ -1,3 +1,50 @@
+// =============== PUSH NOTIFICATION ENUMS (Based on Backend API) ===============
+
+// Notification Scope - Determines the reach of the notification
+export enum NotificationScope {
+  GLOBAL = 'GLOBAL',       // System-wide (SUPERADMIN only)
+  INSTITUTE = 'INSTITUTE', // Institute-wide
+  CLASS = 'CLASS',         // Class-specific
+  SUBJECT = 'SUBJECT'      // Subject-specific
+}
+
+// Target User Types - Who receives the notification
+export enum NotificationTargetUserType {
+  // Standard targets
+  ALL = 'ALL',
+  STUDENTS = 'STUDENTS',
+  TEACHERS = 'TEACHERS',
+  PARENTS = 'PARENTS',
+  ATTENDANCE_MARKERS = 'ATTENDANCE_MARKERS',
+  INSTITUTE_ADMINS = 'INSTITUTE_ADMINS',
+  
+  // Advanced filters (GLOBAL scope only)
+  USERS_WITHOUT_INSTITUTE = 'USERS_WITHOUT_INSTITUTE',   // Not enrolled anywhere
+  USERS_WITHOUT_PARENT = 'USERS_WITHOUT_PARENT',         // USER_WITHOUT_PARENT type
+  USERS_WITHOUT_STUDENT = 'USERS_WITHOUT_STUDENT',       // USER_WITHOUT_STUDENT type
+  VERIFIED_USERS_ONLY = 'VERIFIED_USERS_ONLY',           // isEmailVerified = true
+  UNVERIFIED_USERS_ONLY = 'UNVERIFIED_USERS_ONLY'        // isEmailVerified = false
+}
+
+// Notification Status - Current state of the notification
+export enum NotificationStatus {
+  DRAFT = 'DRAFT',         // Initial state
+  SCHEDULED = 'SCHEDULED', // For future delivery
+  SENDING = 'SENDING',     // Currently processing
+  SENT = 'SENT',           // Successfully sent
+  FAILED = 'FAILED',       // Send failed
+  CANCELLED = 'CANCELLED'  // Manually cancelled
+}
+
+// Notification Priority
+export enum NotificationPriority {
+  LOW = 'LOW',
+  NORMAL = 'NORMAL',   // Default
+  HIGH = 'HIGH'
+}
+
+// =============== LEGACY ENUMS (For backward compatibility) ===============
+
 // Notification Types for Super Admin
 export enum SuperAdminNotificationType {
   SYSTEM_ALERT = 'SYSTEM_ALERT',
@@ -10,20 +57,6 @@ export enum SuperAdminNotificationType {
   BROADCAST = 'BROADCAST',
   BULK_OPERATION = 'BULK_OPERATION',
   USAGE_ALERT = 'USAGE_ALERT'
-}
-
-export enum NotificationStatus {
-  DRAFT = 'DRAFT',
-  SCHEDULED = 'SCHEDULED',
-  SENT = 'SENT',
-  CANCELLED = 'CANCELLED'
-}
-
-export enum NotificationPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL'
 }
 
 export enum TargetAudience {
@@ -116,3 +149,160 @@ export interface NotificationAnalytics {
     failed: number;
   }>;
 }
+
+// =============== PUSH NOTIFICATION INTERFACES ===============
+
+// Push Notification Entity (matching backend)
+export interface PushNotification {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl?: string;
+  icon?: string;
+  actionUrl?: string;
+  dataPayload?: Record<string, string>;
+  scope: NotificationScope;
+  targetUserTypes: NotificationTargetUserType[];
+  instituteId?: string;
+  classId?: string;
+  subjectId?: string;
+  institute?: {
+    id: string;
+    name: string;
+  };
+  class?: {
+    id: string;
+    name: string;
+  };
+  subject?: {
+    id: string;
+    name: string;
+  };
+  priority: NotificationPriority;
+  status: NotificationStatus;
+  collapseKey?: string;
+  timeToLive: number;
+  scheduledAt?: string;
+  sentAt?: string;
+  senderId?: string;
+  senderRole: string;
+  sender?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  readCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Create Notification DTO
+export interface CreatePushNotificationDto {
+  title: string;
+  body: string;
+  imageUrl?: string;
+  icon?: string;
+  actionUrl?: string;
+  dataPayload?: Record<string, string>;
+  scope: NotificationScope;
+  targetUserTypes: NotificationTargetUserType[];
+  instituteId?: string;
+  classId?: string;
+  subjectId?: string;
+  priority?: NotificationPriority;
+  collapseKey?: string;
+  timeToLive?: number;
+  scheduledAt?: string;
+  sendImmediately?: boolean;
+}
+
+// Send Notification Result
+export interface SendNotificationResultDto {
+  notificationId: string;
+  status: NotificationStatus;
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  sentAt: string;
+}
+
+// Paginated Response
+export interface PaginatedPushNotifications {
+  data: PushNotification[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// Target User Type Display Config
+export const TARGET_USER_TYPE_CONFIG: Record<NotificationTargetUserType, { 
+  label: string; 
+  description: string; 
+  category: 'basic' | 'advanced';
+  globalOnly?: boolean;
+}> = {
+  [NotificationTargetUserType.ALL]: { 
+    label: 'All Users', 
+    description: 'Send to everyone', 
+    category: 'basic' 
+  },
+  [NotificationTargetUserType.STUDENTS]: { 
+    label: 'Students', 
+    description: 'All student accounts', 
+    category: 'basic' 
+  },
+  [NotificationTargetUserType.TEACHERS]: { 
+    label: 'Teachers', 
+    description: 'All teacher accounts', 
+    category: 'basic' 
+  },
+  [NotificationTargetUserType.PARENTS]: { 
+    label: 'Parents', 
+    description: 'All parent accounts', 
+    category: 'basic' 
+  },
+  [NotificationTargetUserType.ATTENDANCE_MARKERS]: { 
+    label: 'Attendance Markers', 
+    description: 'Users who mark attendance', 
+    category: 'basic' 
+  },
+  [NotificationTargetUserType.INSTITUTE_ADMINS]: { 
+    label: 'Institute Admins', 
+    description: 'Institute administrators', 
+    category: 'basic' 
+  },
+  [NotificationTargetUserType.USERS_WITHOUT_INSTITUTE]: { 
+    label: 'Users Without Institute', 
+    description: 'Not enrolled in any institute', 
+    category: 'advanced',
+    globalOnly: true
+  },
+  [NotificationTargetUserType.USERS_WITHOUT_PARENT]: { 
+    label: 'Users Without Parent', 
+    description: 'Cannot be assigned as parent', 
+    category: 'advanced',
+    globalOnly: true
+  },
+  [NotificationTargetUserType.USERS_WITHOUT_STUDENT]: { 
+    label: 'Users Without Student', 
+    description: 'Cannot play student role', 
+    category: 'advanced',
+    globalOnly: true
+  },
+  [NotificationTargetUserType.VERIFIED_USERS_ONLY]: { 
+    label: 'Verified Users Only', 
+    description: 'Email verified users', 
+    category: 'advanced',
+    globalOnly: true
+  },
+  [NotificationTargetUserType.UNVERIFIED_USERS_ONLY]: { 
+    label: 'Unverified Users Only', 
+    description: 'Not email verified', 
+    category: 'advanced',
+    globalOnly: true
+  },
+};
