@@ -185,9 +185,34 @@ export default function ProfileImagePage() {
     setUploadState({ status: 'idle', progress: 0, message: '' });
   };
 
+  // Get the current ID to use for upload
+  const getCurrentId = () => {
+    if (userProfile) {
+      return lookupType === 'student' ? userProfile.studentId : userProfile.userId;
+    }
+    return lookupType === 'student' ? studentId.trim() : userId.trim();
+  };
+
   // Upload profile image
   const handleUpload = async () => {
-    if (!selectedFile || !userProfile) return;
+    if (!selectedFile) {
+      toast({
+        title: "Error",
+        description: "Please select an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentId = getCurrentId();
+    if (!currentId) {
+      toast({
+        title: "Error",
+        description: `Please enter a ${lookupType === 'student' ? 'Student' : 'User'} ID`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Step 1: Generate signed URL
@@ -199,16 +224,16 @@ export default function ProfileImagePage() {
 
       let signedUrlResponse;
       
-      if (lookupType === 'student' && userProfile.studentId) {
+      if (lookupType === 'student') {
         signedUrlResponse = await api.generateStudentProfileImageUrl({
-          studentId: userProfile.studentId,
+          studentId: currentId,
           fileName: selectedFile.name,
           contentType: selectedFile.type,
           fileSize: selectedFile.size,
         });
       } else {
         signedUrlResponse = await api.generateUserProfileImageUrl({
-          userId: userProfile.userId,
+          userId: currentId,
           fileName: selectedFile.name,
           contentType: selectedFile.type,
           fileSize: selectedFile.size,
@@ -220,7 +245,7 @@ export default function ProfileImagePage() {
       // Step 2: Upload to cloud storage
       setUploadState({ 
         status: 'uploading', 
-        progress: 30, 
+        progress: 40, 
         message: 'Uploading image...' 
       });
 
@@ -236,27 +261,21 @@ export default function ProfileImagePage() {
         throw new Error('Failed to upload image to cloud storage');
       }
 
-      setUploadState({ 
-        status: 'uploading', 
-        progress: 70, 
-        message: 'Upload complete. Assigning to profile...' 
-      });
-
       // Step 3: Assign image to user profile
       setUploadState({ 
         status: 'assigning', 
-        progress: 85, 
+        progress: 75, 
         message: 'Assigning image to profile...' 
       });
 
-      if (lookupType === 'student' && userProfile.studentId) {
+      if (lookupType === 'student') {
         await api.assignStudentProfileImage({
-          studentId: userProfile.studentId,
+          studentId: currentId,
           imageKey: imageKey,
         });
       } else {
         await api.assignUserProfileImage({
-          userId: userProfile.userId,
+          userId: currentId,
           imageKey: imageKey,
         });
       }
@@ -268,12 +287,14 @@ export default function ProfileImagePage() {
         message: 'Profile image updated successfully!' 
       });
 
-      // Update user profile with new image
-      setUserProfile(prev => prev ? { ...prev, profileImage: imageKey } : null);
+      // Update user profile with new image if we have one
+      if (userProfile) {
+        setUserProfile(prev => prev ? { ...prev, profileImage: imageKey } : null);
+      }
 
       toast({
         title: "Success",
-        description: "Profile image has been updated successfully!",
+        description: `Profile image assigned to ${lookupType === 'student' ? 'Student' : 'User'} ID: ${currentId}`,
       });
 
     } catch (error: any) {
@@ -338,7 +359,7 @@ export default function ProfileImagePage() {
                 User Lookup
               </CardTitle>
               <CardDescription>
-                Search for a user by Student ID or User ID
+                Search for a user (optional) or enter ID directly to upload
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -464,19 +485,25 @@ export default function ProfileImagePage() {
                 Upload Profile Image
               </CardTitle>
               <CardDescription>
-                Upload a new profile image for the selected user
+                Upload image directly or after searching for a user
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {!userProfile ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <User className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    Search for a user first to upload their profile image
-                  </p>
-                </div>
-              ) : (
                 <div className="space-y-4">
+                  {/* Show current target */}
+                  {(userProfile || (lookupType === 'student' ? studentId : userId)) && (
+                    <div className="p-3 border rounded-lg bg-muted/30">
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Target: </span>
+                        <span className="font-medium">
+                          {userProfile 
+                            ? `${userProfile.firstName} ${userProfile.lastName}` 
+                            : `${lookupType === 'student' ? 'Student' : 'User'} ID: ${lookupType === 'student' ? studentId : userId}`
+                          }
+                        </span>
+                      </p>
+                    </div>
+                  )}
                   {/* File Input */}
                   <div className="space-y-2">
                     <Label htmlFor="profileImage">Select Image</Label>
@@ -568,7 +595,6 @@ export default function ProfileImagePage() {
                     )}
                   </div>
                 </div>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -585,9 +611,9 @@ export default function ProfileImagePage() {
                   1
                 </div>
                 <div>
-                  <h4 className="font-medium">Search User</h4>
+                  <h4 className="font-medium">Enter ID</h4>
                   <p className="text-sm text-muted-foreground">
-                    Look up the user by their Student ID or User ID
+                    Enter Student ID or User ID (search is optional)
                   </p>
                 </div>
               </div>

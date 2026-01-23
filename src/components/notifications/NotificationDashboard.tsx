@@ -79,6 +79,25 @@ import {
 
 interface AdminNotification extends PushNotification {}
 
+interface SendNotificationResult {
+  success: boolean;
+  notificationId: string;
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  usersWithoutTokens: number;
+  usersWithTokens: number;
+  message: string;
+  details: {
+    targetedUsers: number;
+    usersWithTokens: number;
+    usersWithoutTokens: number;
+    successfulSends: number;
+    failedSends: number;
+    deliveryRate: string;
+  };
+}
+
 const NotificationDashboard = () => {
   // Data state
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -94,6 +113,8 @@ const NotificationDashboard = () => {
   // Loading states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [sendResult, setSendResult] = useState<SendNotificationResult | null>(null);
+  const [showResultDialog, setShowResultDialog] = useState(false);
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -473,11 +494,47 @@ const NotificationDashboard = () => {
   const handleSendNotification = async (id: string) => {
     setActionLoadingId(id);
     try {
-      await api.sendPushNotification(id);
-      toast({
-        title: "Notification Sent",
-        description: "The notification has been sent to all target users.",
-      });
+      const result: SendNotificationResult = await api.sendPushNotification(id);
+      
+      // Store result for detailed dialog
+      setSendResult(result);
+      setShowResultDialog(true);
+      
+      // Check if anyone received the notification
+      if (result.sentCount === 0 && result.usersWithoutTokens === result.totalRecipients) {
+        // All users don't have the app installed
+        toast({
+          title: "⚠️ No Notifications Delivered",
+          description: `All ${result.totalRecipients} targeted users don't have the app installed or have notifications disabled. No notifications were sent.`,
+          variant: "destructive",
+        });
+      } else if (result.sentCount === 0 && result.usersWithoutTokens > 0) {
+        // Some users don't have tokens but none were delivered
+        toast({
+          title: "⚠️ Delivery Failed",
+          description: `0 out of ${result.totalRecipients} users received the notification. ${result.usersWithoutTokens} users don't have the app installed.`,
+          variant: "destructive",
+        });
+      } else if (result.usersWithoutTokens > 0) {
+        // Partial delivery
+        toast({
+          title: "⚠️ Partially Delivered",
+          description: `Successfully sent to ${result.sentCount} out of ${result.totalRecipients} users. ${result.usersWithoutTokens} users don't have the app installed. Delivery rate: ${result.details.deliveryRate}`,
+        });
+      } else if (result.failedCount > 0) {
+        // Some failures
+        toast({
+          title: "⚠️ Sent with Errors",
+          description: `Sent to ${result.sentCount} users, but ${result.failedCount} deliveries failed. Delivery rate: ${result.details.deliveryRate}`,
+        });
+      } else {
+        // Perfect delivery
+        toast({
+          title: "✅ Notification Sent Successfully",
+          description: `Successfully delivered to all ${result.sentCount} users (100% delivery rate)!`,
+        });
+      }
+      
       fetchNotifications();
     } catch (error: any) {
       toast({
@@ -493,11 +550,37 @@ const NotificationDashboard = () => {
   const handleResendNotification = async (id: string) => {
     setActionLoadingId(id);
     try {
-      await api.resendPushNotification(id);
-      toast({
-        title: "Notification Resent",
-        description: "The failed notification has been resent.",
-      });
+      const result: SendNotificationResult = await api.resendPushNotification(id);
+      
+      // Store result for detailed dialog
+      setSendResult(result);
+      setShowResultDialog(true);
+      
+      // Same logic as send
+      if (result.sentCount === 0 && result.usersWithoutTokens === result.totalRecipients) {
+        toast({
+          title: "⚠️ Resend Failed",
+          description: `All ${result.totalRecipients} targeted users don't have the app installed. No notifications were delivered.`,
+          variant: "destructive",
+        });
+      } else if (result.sentCount === 0) {
+        toast({
+          title: "⚠️ Resend Failed",
+          description: `Failed to deliver to any users. ${result.usersWithoutTokens} users don't have the app.`,
+          variant: "destructive",
+        });
+      } else if (result.usersWithoutTokens > 0) {
+        toast({
+          title: "⚠️ Resent with Limitations",
+          description: `Delivered to ${result.sentCount}/${result.totalRecipients} users. ${result.usersWithoutTokens} users don't have the app. Delivery rate: ${result.details.deliveryRate}`,
+        });
+      } else {
+        toast({
+          title: "✅ Notification Resent",
+          description: `Successfully delivered to ${result.sentCount} users (${result.details.deliveryRate} delivery rate)!`,
+        });
+      }
+      
       fetchNotifications();
     } catch (error: any) {
       toast({
@@ -1383,6 +1466,121 @@ const NotificationDashboard = () => {
                 Resend
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delivery Report Dialog */}
+      <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Notification Delivery Report</DialogTitle>
+            <DialogDescription>
+              Detailed breakdown of notification delivery
+            </DialogDescription>
+          </DialogHeader>
+          {sendResult && (
+            <div className="space-y-4">
+              {sendResult.usersWithoutTokens > 0 && (
+                <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                  <div className="flex items-center gap-2 text-orange-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <p className="text-sm font-medium">
+                      {sendResult.usersWithoutTokens} user(s) don't have the app installed
+                    </p>
+                  </div>
+                  <p className="text-xs text-orange-700 mt-1">
+                    These users cannot receive push notifications until they install and configure the app.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Targeted Users</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">{sendResult.details.targetedUsers}</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Users with App</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {sendResult.details.usersWithTokens}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Successfully Sent</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-green-600">
+                      {sendResult.details.successfulSends}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Delivery Rate</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {sendResult.details.deliveryRate}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {sendResult.details.failedSends > 0 && (
+                  <Card className="col-span-2">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-red-600">Failed Deliveries</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-bold text-red-600">
+                        {sendResult.details.failedSends}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Failed due to invalid tokens or network issues
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {sendResult.details.usersWithoutTokens > 0 && (
+                  <Card className="col-span-2">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-orange-600">Users Without App</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {sendResult.details.usersWithoutTokens}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        These users were not sent notifications (no app installed)
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              <div className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
+                <p className="font-medium mb-1">Summary:</p>
+                <p>{sendResult.message}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowResultDialog(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
