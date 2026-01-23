@@ -1,333 +1,511 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Calendar, Clock, MapPin, Video } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { apiClient } from '@/api/client';
-import { useInstituteRole } from '@/hooks/useInstituteRole';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
+import { uploadFile } from "@/lib/upload";
+import { Loader2, Upload, X, Plus, FileText } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface CreateLectureFormProps {
-  onClose?: () => void;
-  onSuccess?: () => void | Promise<void>;
-  courseId?: string;
+const formSchema = z.object({
+  subjectId: z.string().min(1, "Subject is required"),
+  grade: z.coerce.number().min(1, "Grade is required"),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  lessonNumber: z.coerce.number().min(1, "Lesson number is required"),
+  lectureNumber: z.coerce.number().min(1, "Lecture number is required"),
+  provider: z.string().optional(),
+  lectureLink: z.string().url().optional().or(z.literal("")),
+  lectureVideoUrl: z.string().url().optional().or(z.literal("")),
+  isActive: z.boolean().default(true),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
 }
 
-const CreateLectureForm = ({ onClose, onSuccess, courseId }: CreateLectureFormProps) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    venue: '',
-    mode: 'online',
-    timeStart: '',
-    timeEnd: '',
-    isPublic: true,
-    liveLink: '',
-    recordingUrl: '',
-    maxParticipants: 30,
-    meetingId: '',
-    meetingPassword: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
-  const instituteRole = useInstituteRole();
-  
-  const canCreate = instituteRole === 'InstituteAdmin' || instituteRole === 'Teacher';
+interface DocumentItem {
+  name: string;
+  file: File | null;
+  url?: string;
+  type: string;
+}
 
-  const handleInputChange = (field: string, value: string | boolean | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+interface CreateLectureFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+export function CreateLectureForm({
+  open,
+  onOpenChange,
+  onSuccess,
+}: CreateLectureFormProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      subjectId: "",
+      grade: 10,
+      title: "",
+      description: "",
+      lessonNumber: 1,
+      lectureNumber: 1,
+      provider: "",
+      lectureLink: "",
+      lectureVideoUrl: "",
+      isActive: true,
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      fetchSubjects();
+    }
+  }, [open]);
+
+  const fetchSubjects = async () => {
+    try {
+      const response = await api.getSubjects(1, 100);
+      if (Array.isArray(response)) {
+        setSubjects(response);
+      } else {
+        setSubjects(response.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch subjects:", error);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Please select an institute, class, and subject before creating a lecture",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!canCreate) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to create lectures. Only Institute Admins and Teachers can create lectures.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const lectureData = {
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        instructorId: user.id,
-        lectures: {
-          title: formData.title,
-          description: formData.description,
-          lectureType: formData.mode as 'online' | 'physical',
-          venue: formData.venue,
-          startTime: formData.timeStart,
-          endTime: formData.timeEnd,
-          meetingLink: formData.liveLink || undefined,
-          meetingId: formData.meetingId || undefined,
-          recodingUrl: formData.recordingUrl || undefined,
-          maxParticipants: formData.maxParticipants,
-          meetingPassword: formData.meetingPassword || undefined,
-          isRecorded: !!formData.recordingUrl
-        }
+  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCoverImageFile(file);
+        setCoverImagePreview(reader.result as string);
       };
-      
-      console.log('Creating lecture with data:', lectureData);
-      
-      const response = await apiClient.post('/institute-class-subject-lectures', lectureData);
-      const newLecture = response.data;
-      
-      toast({
-        title: "Success",
-        description: `Lecture created successfully`,
-      });
+      reader.readAsDataURL(file);
+    }
+  };
 
-      // Call onSuccess first to close dialog and refresh
-      if (onSuccess) {
-        await onSuccess();
+  const removeCoverImage = () => {
+    setCoverImageFile(null);
+    setCoverImagePreview(null);
+  };
+
+  const addDocument = () => {
+    setDocuments([...documents, { name: "", file: null, type: "PDF" }]);
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments(documents.filter((_, i) => i !== index));
+  };
+
+  const handleDocumentChange = (index: number, field: keyof DocumentItem, value: any) => {
+    const updated = [...documents];
+    updated[index] = { ...updated[index], [field]: value };
+    setDocuments(updated);
+  };
+
+  const handleDocumentFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleDocumentChange(index, "file", file);
+      if (!documents[index].name) {
+        handleDocumentChange(index, "name", file.name.replace(/\.[^/.]+$/, ""));
+      }
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      setIsSubmitting(true);
+
+      let coverImageUrl = "";
+
+      // Upload cover image
+      if (coverImageFile) {
+        const coverResult = await uploadFile(coverImageFile, "structured-lecture-covers");
+        coverImageUrl = coverResult.relativePath;
       }
 
-      // Reset form after success callback
-      setFormData({
-        title: '',
-        description: '',
-        venue: '',
-        mode: 'online',
-        timeStart: '',
-        timeEnd: '',
-        isPublic: true,
-        liveLink: '',
-        recordingUrl: '',
-        maxParticipants: 30,
-        meetingId: '',
-        meetingPassword: ''
+      // Upload documents
+      const uploadedDocuments: { name: string; url: string; type: string }[] = [];
+      const documentUrls: string[] = [];
+
+      for (const doc of documents) {
+        if (doc.file) {
+          const docResult = await uploadFile(doc.file, "structured-lecture-documents");
+          uploadedDocuments.push({
+            name: doc.name || doc.file.name,
+            url: docResult.relativePath,
+            type: doc.type,
+          });
+          documentUrls.push(docResult.relativePath);
+        }
+      }
+
+      const payload = {
+        ...data,
+        coverImageUrl: coverImageUrl || undefined,
+        documentUrls: documentUrls.length > 0 ? documentUrls : undefined,
+        documents: uploadedDocuments.length > 0 ? uploadedDocuments : undefined,
+        lectureLink: data.lectureLink || undefined,
+        lectureVideoUrl: data.lectureVideoUrl || undefined,
+        provider: data.provider || undefined,
+      };
+
+      await api.createStructuredLecture(payload);
+
+      toast({
+        title: "Success",
+        description: "Lecture created successfully",
       });
+
+      form.reset();
+      setCoverImageFile(null);
+      setCoverImagePreview(null);
+      setDocuments([]);
+      onOpenChange(false);
+      onSuccess();
     } catch (error) {
-      console.error('Error creating lecture:', error);
+      console.error("Failed to create lecture:", error);
       toast({
         title: "Error",
-        description: "Failed to create lecture. Please try again.",
+        description: "Failed to create lecture",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {onClose && (
-        <Button variant="outline" onClick={onClose} className="w-fit">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            Create New Lecture
-          </CardTitle>
-          <CardDescription>
-            Create a new lecture for the Course Lectures section
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="title">Lecture Title</Label>
-                <Input
-                  id="title"
-                  placeholder="Enter lecture title..."
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  required
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Create Structured Lecture</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[75vh] pr-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Subject and Grade */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="subjectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select subject" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subjects.map((subject) => (
+                            <SelectItem key={subject.id} value={subject.id}>
+                              {subject.name} ({subject.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="grade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grade *</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} max={13} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
+              {/* Title */}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Lecture title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Description */}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Lecture description" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Lesson and Lecture Numbers */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="lessonNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lesson Number *</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lectureNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lecture Number *</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="provider"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Provider</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Dr. John Smith" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Links */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="lectureLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lecture Link</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://zoom.us/..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lectureVideoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Video URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://cdn.example.com/video.mp4" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Cover Image */}
               <div className="space-y-2">
-                <Label htmlFor="mode">Mode</Label>
-                <Select value={formData.mode} onValueChange={(value) => handleInputChange('mode', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="online">
-                      <div className="flex items-center gap-2">
-                        <Video className="h-4 w-4" />
-                        Online
+                <FormLabel>Cover Image</FormLabel>
+                <div className="border-2 border-dashed border-border rounded-lg p-4">
+                  {coverImagePreview ? (
+                    <div className="relative">
+                      <img
+                        src={coverImagePreview}
+                        alt="Cover preview"
+                        className="w-full h-40 object-cover rounded"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2"
+                        onClick={removeCoverImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center cursor-pointer py-4">
+                      <Upload className="h-10 w-10 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground mt-2">
+                        Click to upload cover image (JPEG, PNG, WebP - Max 10MB)
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleCoverImageChange}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <FormLabel>Documents</FormLabel>
+                  <Button type="button" variant="outline" size="sm" onClick={addDocument}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Document
+                  </Button>
+                </div>
+                {documents.map((doc, index) => (
+                  <div key={index} className="flex gap-3 items-start p-3 border rounded-lg">
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        placeholder="Document name"
+                        value={doc.name}
+                        onChange={(e) => handleDocumentChange(index, "name", e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Select
+                          value={doc.type}
+                          onValueChange={(value) => handleDocumentChange(index, "type", value)}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PDF">PDF</SelectItem>
+                            <SelectItem value="IMAGE">Image</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex-1">
+                          <label className="flex items-center gap-2 cursor-pointer border rounded px-3 py-2 hover:bg-muted/50">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground truncate">
+                              {doc.file ? doc.file.name : "Choose file..."}
+                            </span>
+                            <input
+                              type="file"
+                              accept="application/pdf,image/jpeg,image/png"
+                              className="hidden"
+                              onChange={(e) => handleDocumentFileChange(index, e)}
+                            />
+                          </label>
+                        </div>
                       </div>
-                    </SelectItem>
-                    <SelectItem value="physical">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        Physical
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter lecture description..."
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="venue">Venue</Label>
-              <Input
-                id="venue"
-                placeholder={formData.mode === 'online' ? "Online platform (e.g., Zoom, Teams)" : "Physical location"}
-                value={formData.venue}
-                onChange={(e) => handleInputChange('venue', e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="timeStart" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Start Time
-                </Label>
-                <Input
-                  id="timeStart"
-                  type="datetime-local"
-                  value={formData.timeStart}
-                  onChange={(e) => handleInputChange('timeStart', e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="timeEnd" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  End Time
-                </Label>
-                <Input
-                  id="timeEnd"
-                  type="datetime-local"
-                  value={formData.timeEnd}
-                  onChange={(e) => handleInputChange('timeEnd', e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isPublic"
-                checked={formData.isPublic}
-                onCheckedChange={(checked) => handleInputChange('isPublic', checked)}
-              />
-              <Label htmlFor="isPublic" className="text-sm font-medium">
-                Make this lecture public
-              </Label>
-            </div>
-
-            {formData.mode === 'online' && (
-              <div className="space-y-2">
-                <Label htmlFor="liveLink">Live Session Link (Optional)</Label>
-                <Input
-                  id="liveLink"
-                  placeholder="https://zoom.us/j/... or meeting link"
-                  value={formData.liveLink}
-                  onChange={(e) => handleInputChange('liveLink', e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="maxParticipants">Max Participants</Label>
-                <Input
-                  id="maxParticipants"
-                  type="number"
-                  min="1"
-                  placeholder="30"
-                  value={formData.maxParticipants}
-                  onChange={(e) => handleInputChange('maxParticipants', parseInt(e.target.value) || 30)}
-                />
-              </div>
-
-              {formData.mode === 'online' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="meetingPassword">Meeting Password (Optional)</Label>
-                    <Input
-                      id="meetingPassword"
-                      placeholder="Password for the meeting"
-                      value={formData.meetingPassword}
-                      onChange={(e) => handleInputChange('meetingPassword', e.target.value)}
-                    />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeDocument(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="meetingId">Meeting ID (Optional)</Label>
-                    <Input
-                      id="meetingId"
-                      placeholder="Enter meeting ID"
-                      value={formData.meetingId}
-                      onChange={(e) => handleInputChange('meetingId', e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
+                ))}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="recordingUrl">Recording URL (Optional)</Label>
-              <Input
-                id="recordingUrl"
-                placeholder="https://... (can be added later)"
-                value={formData.recordingUrl}
-                onChange={(e) => handleInputChange('recordingUrl', e.target.value)}
+              {/* Is Active */}
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Active</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Make this lecture active and visible
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1">
-                {isLoading ? 'Creating...' : 'Create Lecture'}
-              </Button>
-              {onClose && (
-                <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
                   Cancel
                 </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Lecture
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
-};
-
-export default CreateLectureForm;
+}

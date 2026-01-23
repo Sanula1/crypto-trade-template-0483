@@ -1,624 +1,616 @@
-import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { usersApi, UserCreateData } from '@/api';
-import { toast } from 'sonner';
-import { CalendarIcon } from 'lucide-react';
-import PassportImageCropUpload from '@/components/common/PassportImageCropUpload';
+import { useState, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
+import { uploadFile } from "@/lib/upload";
+import { UserType, Gender, District, Province, Occupation } from "@/lib/enums";
+import { Loader2, Upload, X, User, Camera } from "lucide-react";
+
+const bloodGroups = [
+  "A_POSITIVE", "A_NEGATIVE", "B_POSITIVE", "B_NEGATIVE",
+  "AB_POSITIVE", "AB_NEGATIVE", "O_POSITIVE", "O_NEGATIVE"
+] as const;
+
+const userSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().min(1, "Last name is required").max(100),
+  email: z.string().email("Invalid email address"),
+  phoneNumber: z.string().min(10, "Phone number is required"),
+  userType: z.nativeEnum(UserType),
+  gender: z.nativeEnum(Gender),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  nic: z.string().optional(),
+  birthCertificateNo: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  district: z.nativeEnum(District).optional(),
+  province: z.nativeEnum(Province).optional(),
+  postalCode: z.string().optional(),
+  country: z.string().default("Sri Lanka"),
+  isActive: z.boolean().default(true),
+  // Student data
+  studentId: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  medicalConditions: z.string().optional(),
+  allergies: z.string().optional(),
+  bloodGroup: z.enum(bloodGroups).optional(),
+  fatherPhoneNumber: z.string().optional(),
+  motherPhoneNumber: z.string().optional(),
+  guardianPhoneNumber: z.string().optional(),
+  // Parent data
+  occupation: z.nativeEnum(Occupation).optional(),
+  workplace: z.string().optional(),
+  workPhone: z.string().optional(),
+  educationLevel: z.string().optional(),
+});
+
+type UserFormData = z.infer<typeof userSchema>;
 
 interface CreateUserFormProps {
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
-  loading?: boolean;
-  initialData?: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
 }
 
-const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: CreateUserFormProps) => {
-  // Format initial date to YYYY-MM-DD if provided
-  const formatDateForInput = (dateString: string | null | undefined): string => {
-    if (!dateString) return '';
-    
-    // If it's already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      return dateString;
-    }
-    
-    // Try to parse and format the date
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '';
-      
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      return `${year}-${month}-${day}`;
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return '';
-    }
-  };
+export function CreateUserForm({ open, onOpenChange, onSuccess }: CreateUserFormProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idFileName, setIdFileName] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const [formData, setFormData] = useState({
-    firstName: initialData?.firstName || '',
-    lastName: initialData?.lastName || '',
-    email: initialData?.email || '',
-    phoneNumber: initialData?.phoneNumber || '',
-    userType: initialData?.userType || 'USER',
-    dateOfBirth: formatDateForInput(initialData?.dateOfBirth),
-    gender: initialData?.gender || '',
-    nic: initialData?.nic || '',
-    addressLine1: initialData?.addressLine1 || '',
-    addressLine2: initialData?.addressLine2 || '',
-    city: initialData?.city || '',
-    district: initialData?.district || '',
-    province: initialData?.province || '',
-    postalCode: initialData?.postalCode || '',
-    country: initialData?.country || 'Sri Lanka',
-    imageUrl: initialData?.imageUrl || '',
-    idUrl: initialData?.idUrl || '',
-    isActive: initialData?.isActive ?? true,
-    studentId: initialData?.studentId || '',
-    emergencyContact: initialData?.emergencyContact || '',
-    medicalConditions: initialData?.medicalConditions || '',
-    allergies: initialData?.allergies || '',
-    bloodGroup: initialData?.bloodGroup || '',
-    fatherId: initialData?.fatherId || '',
-    fatherPhoneNumber: initialData?.fatherPhoneNumber || '',
-    motherId: initialData?.motherId || '',
-    motherPhoneNumber: initialData?.motherPhoneNumber || '',
-    guardianId: initialData?.guardianId || '',
-    guardianPhoneNumber: initialData?.guardianPhoneNumber || '',
-    occupation: initialData?.occupation || '',
-    workplace: initialData?.workplace || '',
-    workPhone: initialData?.workPhone || '',
-    educationLevel: initialData?.educationLevel || ''
+  const form = useForm<UserFormData>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+      userType: UserType.USER,
+      gender: Gender.MALE,
+      dateOfBirth: "",
+      country: "Sri Lanka",
+      isActive: true,
+    },
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const userType = form.watch("userType");
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const showStudentData = userType === UserType.USER || 
+                          userType === UserType.SUPERADMIN || 
+                          userType === UserType.ORGANIZATION_MANAGER ||
+                          userType === UserType.USER_WITHOUT_PARENT;
+                          
+  const showParentData = userType === UserType.USER || 
+                         userType === UserType.SUPERADMIN || 
+                         userType === UserType.ORGANIZATION_MANAGER ||
+                         userType === UserType.USER_WITHOUT_STUDENT;
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleImageUpdate = (imageUrl: string) => {
-    handleInputChange('imageUrl', imageUrl);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
+  const startCamera = async () => {
     try {
-      const formattedData: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
-        userType: formData.userType,
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        nic: formData.nic,
-        addressLine1: formData.addressLine1,
-        addressLine2: formData.addressLine2,
-        city: formData.city,
-        district: formData.district,
-        province: formData.province,
-        postalCode: formData.postalCode,
-        country: formData.country,
-        imageUrl: formData.imageUrl,
-        idUrl: formData.idUrl,
-        isActive: formData.isActive,
-        studentId: formData.studentId,
-        emergencyContact: formData.emergencyContact,
-        medicalConditions: formData.medicalConditions,
-        allergies: formData.allergies,
-        bloodGroup: formData.bloodGroup,
-        fatherId: formData.fatherId,
-        fatherPhoneNumber: formData.fatherPhoneNumber,
-        motherId: formData.motherId,
-        motherPhoneNumber: formData.motherPhoneNumber,
-        guardianId: formData.guardianId,
-        guardianPhoneNumber: formData.guardianPhoneNumber,
-        occupation: formData.occupation,
-        workplace: formData.workplace,
-        workPhone: formData.workPhone,
-        educationLevel: formData.educationLevel
-      };
-      
-      console.log('Submitting user data with formatted date:', formattedData);
-      
-      if (!initialData) {
-        const result = await usersApi.create(formattedData);
-        toast.success('User created successfully!');
-        onSubmit(result);
-      } else {
-        onSubmit(formattedData);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" } 
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
+      setShowCamera(true);
+    } catch (error) {
+      console.error("Camera access denied:", error);
+      toast({
+        title: "Camera Error",
+        description: "Could not access camera. Please check permissions.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
+            setImageFile(file);
+            setImagePreview(canvas.toDataURL("image/jpeg"));
+          }
+        }, "image/jpeg", 0.9);
+      }
+      stopCamera();
+    }
+  };
+
+  const handleIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIdFile(file);
+      setIdFileName(file.name);
+    }
+  };
+
+  const resetForm = () => {
+    form.reset();
+    setImageFile(null);
+    setImagePreview(null);
+    setIdFile(null);
+    setIdFileName(null);
+    stopCamera();
+  };
+
+  const onSubmit = async (data: UserFormData) => {
+    try {
+      setIsSubmitting(true);
+
+      let imageUrl: string | undefined;
+      let idUrl: string | undefined;
+
+      if (imageFile) {
+        const result = await uploadFile(imageFile, "profile-images");
+        imageUrl = result.relativePath;
+      }
+
+      if (idFile) {
+        const result = await uploadFile(idFile, "user-documents");
+        idUrl = result.relativePath;
+      }
+
+      const requestBody: any = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        userType: data.userType,
+        gender: data.gender,
+        dateOfBirth: data.dateOfBirth,
+        nic: data.nic || undefined,
+        birthCertificateNo: data.birthCertificateNo || undefined,
+        addressLine1: data.addressLine1 || undefined,
+        addressLine2: data.addressLine2 || undefined,
+        city: data.city || undefined,
+        district: data.district || undefined,
+        province: data.province || undefined,
+        postalCode: data.postalCode || undefined,
+        country: data.country,
+        imageUrl,
+        idUrl,
+        isActive: data.isActive,
+      };
+
+      if (showStudentData) {
+        requestBody.studentData = {
+          studentId: data.studentId || undefined,
+          emergencyContact: data.emergencyContact || undefined,
+          medicalConditions: data.medicalConditions || undefined,
+          allergies: data.allergies || undefined,
+          bloodGroup: data.bloodGroup || undefined,
+          fatherPhoneNumber: data.fatherPhoneNumber || undefined,
+          motherPhoneNumber: data.motherPhoneNumber || undefined,
+          guardianPhoneNumber: data.guardianPhoneNumber || undefined,
+        };
+      }
+
+      if (showParentData) {
+        requestBody.parentData = {
+          occupation: data.occupation || undefined,
+          workplace: data.workplace || undefined,
+          workPhone: data.workPhone || undefined,
+          educationLevel: data.educationLevel || undefined,
+        };
+      }
+
+      await api.createUser(requestBody);
+
+      toast({
+        title: "Success",
+        description: "User created successfully",
+      });
+
+      resetForm();
+      onOpenChange(false);
+      onSuccess();
     } catch (error: any) {
-      console.error('Error creating user:', error);
-      toast.error(error?.message || 'Failed to create user');
+      console.error("Failed to create user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => onCancel()}>
-      <DialogContent className="max-w-6xl max-h-[98vh] overflow-y-auto p-6 sm:p-8">
-        <DialogHeader className="pb-6 border-b">
-          <DialogTitle className="text-3xl sm:text-4xl font-bold text-center bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            {initialData ? 'Edit User' : 'Create New User'}
+    <Dialog open={open} onOpenChange={(open) => { if (!open) stopCamera(); onOpenChange(open); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Create New User
           </DialogTitle>
-          <p className="text-muted-foreground text-center mt-2">Fill in the information below to create a new user account</p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="space-y-8">
-              {/* Photo Upload Section */}
-              <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-lg border">
-                <h3 className="text-2xl font-semibold flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                    <span className="text-primary font-bold">1</span>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <ScrollArea className="h-[65vh] pr-4">
+            <div className="space-y-6 pb-4">
+              {/* Profile Image with Camera */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  {showCamera ? (
+                    <div className="relative">
+                      <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline 
+                        className="w-32 h-32 rounded-full object-cover border-2 border-primary"
+                      />
+                      <div className="flex gap-2 mt-2 justify-center">
+                        <Button type="button" size="sm" onClick={capturePhoto}>
+                          Capture
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={stopCamera}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : imagePreview ? (
+                    <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-border">
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => { setImageFile(null); setImagePreview(null); }}
+                        className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-full p-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-full border-2 border-dashed border-border flex items-center justify-center">
+                      <User className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                {!showCamera && (
+                  <div className="space-y-2">
+                    <Label>Profile Image</Label>
+                    <p className="text-sm text-muted-foreground">Upload a profile photo</p>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={startCamera}>
+                        <Camera className="w-4 h-4 mr-1" />
+                        Camera
+                      </Button>
+                      <label>
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <span>
+                            <Upload className="w-4 h-4 mr-1" />
+                            Upload
+                          </span>
+                        </Button>
+                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                      </label>
+                    </div>
                   </div>
-                  Photo Upload (35mm × 45mm)
-                </h3>
-                
-                <PassportImageCropUpload
-                  currentImageUrl={formData.imageUrl}
-                  onImageUpdate={handleImageUpdate}
-                  folder="profile-images"
-                  label="Profile Photo"
-                  showCamera={true}
+                )}
+              </div>
+
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input id="firstName" {...form.register("firstName")} placeholder="Enter first name" />
+                  {form.formState.errors.firstName && (
+                    <p className="text-sm text-destructive">{form.formState.errors.firstName.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input id="lastName" {...form.register("lastName")} placeholder="Enter last name" />
+                  {form.formState.errors.lastName && (
+                    <p className="text-sm text-destructive">{form.formState.errors.lastName.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input id="email" type="email" {...form.register("email")} placeholder="user@example.com" />
+                  {form.formState.errors.email && (
+                    <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number *</Label>
+                  <Input id="phoneNumber" {...form.register("phoneNumber")} placeholder="+94XXXXXXXXX" />
+                  {form.formState.errors.phoneNumber && (
+                    <p className="text-sm text-destructive">{form.formState.errors.phoneNumber.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="userType">User Type *</Label>
+                  <Select value={form.watch("userType")} onValueChange={(v) => form.setValue("userType", v as UserType)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select user type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(UserType).map(([key, value]) => (
+                        <SelectItem key={value} value={value}>
+                          {key.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender *</Label>
+                  <Select value={form.watch("gender")} onValueChange={(v) => form.setValue("gender", v as Gender)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(Gender).map(([key, value]) => (
+                        <SelectItem key={value} value={value}>{key}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                  <Input id="dateOfBirth" type="date" {...form.register("dateOfBirth")} />
+                  {form.formState.errors.dateOfBirth && (
+                    <p className="text-sm text-destructive">{form.formState.errors.dateOfBirth.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nic">NIC Number</Label>
+                  <Input id="nic" {...form.register("nic")} placeholder="Enter NIC number" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="birthCertificateNo">Birth Certificate No</Label>
+                <Input id="birthCertificateNo" {...form.register("birthCertificateNo")} placeholder="Enter birth certificate number" />
+              </div>
+
+              {/* ID Document Upload */}
+              <div className="space-y-2">
+                <Label>ID Document</Label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 border-2 border-dashed border-border rounded-lg p-3 flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                    <Upload className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {idFileName || "Upload ID document (PDF/Image)"}
+                    </span>
+                    <input type="file" accept="image/*,.pdf" onChange={handleIdFileChange} className="hidden" />
+                  </label>
+                  {idFile && (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => { setIdFile(null); setIdFileName(null); }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="isActive">Active Status</Label>
+                <Switch
+                  id="isActive"
+                  checked={form.watch("isActive")}
+                  onCheckedChange={(checked) => form.setValue("isActive", checked)}
                 />
               </div>
 
-              {/* Personal Information Section */}
-              <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-lg border">
-                <h3 className="text-2xl font-semibold flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                    <span className="text-primary font-bold">2</span>
-                  </div>
-                  Personal Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="firstName" className="text-base font-semibold text-foreground">First Name *</Label>
-                    <Input
-                      id="firstName"
-                      value={formData.firstName}
-                      onChange={(e) => handleInputChange('firstName', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter first name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName" className="text-base font-semibold text-foreground">Last Name *</Label>
-                    <Input
-                      id="lastName"
-                      value={formData.lastName}
-                      onChange={(e) => handleInputChange('lastName', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter last name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="email" className="text-base font-semibold text-foreground">Email Address *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter email address"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="phoneNumber" className="text-base font-semibold text-foreground">Phone Number *</Label>
-                    <Input
-                      id="phoneNumber"
-                      value={formData.phoneNumber}
-                      onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter phone number"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="userType" className="text-base font-semibold text-foreground">User Type *</Label>
-                    <Select value={formData.userType} onValueChange={(value) => handleInputChange('userType', value)}>
-                      <SelectTrigger className="mt-2 h-12 text-base">
-                        <SelectValue placeholder="Select user type" />
-                      </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="USER">User</SelectItem>
-                         <SelectItem value="INSTITUTE_ADMIN">Institute Admin</SelectItem>
-                         <SelectItem value="ATTENDANCE_MARKER">Attendance Marker</SelectItem>
-                         <SelectItem value="TEACHER">Teacher</SelectItem>
-                       </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="dateOfBirth" className="text-base font-semibold text-foreground">Date of Birth *</Label>
-                    <div className="relative mt-2">
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        value={formData.dateOfBirth}
-                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                        className="h-12 text-base"
-                        placeholder="mm/dd/yyyy"
-                        required
-                      />
-                      <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="gender" className="text-base font-semibold text-foreground">Gender *</Label>
-                    <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
-                      <SelectTrigger className="mt-2 h-12 text-base">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MALE">Male</SelectItem>
-                        <SelectItem value="FEMALE">Female</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="nic" className="text-base font-semibold text-foreground">NIC</Label>
-                    <Input
-                      id="nic"
-                      value={formData.nic}
-                      onChange={(e) => handleInputChange('nic', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter NIC number"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="studentId" className="text-base font-semibold text-foreground">Student ID</Label>
-                    <Input
-                      id="studentId"
-                      value={formData.studentId}
-                      onChange={(e) => handleInputChange('studentId', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter student ID"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="idUrl" className="text-base font-semibold text-foreground">ID Document URL</Label>
-                    <Input
-                      id="idUrl"
-                      value={formData.idUrl}
-                      onChange={(e) => handleInputChange('idUrl', e.target.value)}
-                      placeholder="https://example.com/id-document.pdf"
-                      className="mt-2 h-12 text-base"
-                    />
-                  </div>
+              {/* Address */}
+              <div className="space-y-2">
+                <Label htmlFor="addressLine1">Address Line 1</Label>
+                <Input id="addressLine1" {...form.register("addressLine1")} placeholder="Street address" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="addressLine2">Address Line 2</Label>
+                <Input id="addressLine2" {...form.register("addressLine2")} placeholder="Apartment, suite, etc." />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input id="city" {...form.register("city")} placeholder="Enter city" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="postalCode">Postal Code</Label>
+                  <Input id="postalCode" {...form.register("postalCode")} placeholder="00000" />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="district">District</Label>
+                  <Select value={form.watch("district")} onValueChange={(v) => form.setValue("district", v as District)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select district" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(District).map(([key, value]) => (
+                        <SelectItem key={value} value={value}>
+                          {key.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="province">Province</Label>
+                  <Select value={form.watch("province")} onValueChange={(v) => form.setValue("province", v as Province)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(Province).map(([key, value]) => (
+                        <SelectItem key={value} value={value}>
+                          {key.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Input id="country" {...form.register("country")} placeholder="Country" />
+              </div>
 
-              {/* Medical & Emergency Information Section */}
-              <div className="bg-gradient-to-r from-accent/5 to-accent/10 p-6 rounded-lg border">
-                <h3 className="text-2xl font-semibold flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center">
-                    <span className="text-accent-foreground font-bold">3</span>
+              {/* Student Data */}
+              {showStudentData && (
+                <>
+                  <div className="border-t pt-4 mt-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-4">Student Information</h3>
                   </div>
-                  Medical & Emergency Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="emergencyContact" className="text-base font-semibold">Emergency Contact</Label>
-                    <Input
-                      id="emergencyContact"
-                      value={formData.emergencyContact}
-                      onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="+94771234567"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="studentId">Student ID</Label>
+                      <Input id="studentId" {...form.register("studentId")} placeholder="STU-XXXX-XXX" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                      <Input id="emergencyContact" {...form.register("emergencyContact")} placeholder="+94XXXXXXXXX" />
+                    </div>
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="bloodGroup" className="text-base font-semibold">Blood Group</Label>
-                    <Select value={formData.bloodGroup} onValueChange={(value) => handleInputChange('bloodGroup', value)}>
-                      <SelectTrigger className="mt-2 h-12 text-base">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="medicalConditions">Medical Conditions</Label>
+                      <Input id="medicalConditions" {...form.register("medicalConditions")} placeholder="None or specify" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="allergies">Allergies</Label>
+                      <Input id="allergies" {...form.register("allergies")} placeholder="None or specify" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bloodGroup">Blood Group</Label>
+                    <Select value={form.watch("bloodGroup")} onValueChange={(v) => form.setValue("bloodGroup", v as typeof bloodGroups[number])}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Select blood group" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="A_POSITIVE">A+</SelectItem>
-                        <SelectItem value="A_NEGATIVE">A-</SelectItem>
-                        <SelectItem value="B_POSITIVE">B+</SelectItem>
-                        <SelectItem value="B_NEGATIVE">B-</SelectItem>
-                        <SelectItem value="O_POSITIVE">O+</SelectItem>
-                        <SelectItem value="O_NEGATIVE">O-</SelectItem>
-                        <SelectItem value="AB_POSITIVE">AB+</SelectItem>
-                        <SelectItem value="AB_NEGATIVE">AB-</SelectItem>
+                        {bloodGroups.map((group) => (
+                          <SelectItem key={group} value={group}>
+                            {group.replace("_", " ")}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fatherPhoneNumber">Father's Phone</Label>
+                      <Input id="fatherPhoneNumber" {...form.register("fatherPhoneNumber")} placeholder="+94XXXXXXXXX" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="motherPhoneNumber">Mother's Phone</Label>
+                      <Input id="motherPhoneNumber" {...form.register("motherPhoneNumber")} placeholder="+94XXXXXXXXX" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="guardianPhoneNumber">Guardian's Phone</Label>
+                      <Input id="guardianPhoneNumber" {...form.register("guardianPhoneNumber")} placeholder="+94XXXXXXXXX" />
+                    </div>
+                  </div>
+                </>
+              )}
 
-                  <div className="md:col-span-2">
-                    <Label htmlFor="medicalConditions" className="text-base font-semibold">Medical Conditions</Label>
-                    <Textarea
-                      id="medicalConditions"
-                      value={formData.medicalConditions}
-                      onChange={(e) => handleInputChange('medicalConditions', e.target.value)}
-                      className="mt-2"
-                      placeholder="Any medical conditions..."
-                      rows={3}
-                    />
+              {/* Parent Data */}
+              {showParentData && (
+                <>
+                  <div className="border-t pt-4 mt-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-4">Parent Information</h3>
                   </div>
-
-                  <div className="md:col-span-2">
-                    <Label htmlFor="allergies" className="text-base font-semibold">Allergies</Label>
-                    <Textarea
-                      id="allergies"
-                      value={formData.allergies}
-                      onChange={(e) => handleInputChange('allergies', e.target.value)}
-                      className="mt-2"
-                      placeholder="Any allergies..."
-                      rows={3}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="occupation">Occupation</Label>
+                      <Select value={form.watch("occupation")} onValueChange={(v) => form.setValue("occupation", v as Occupation)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select occupation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(Occupation).map(([key, value]) => (
+                            <SelectItem key={value} value={value}>
+                              {key.replace(/_/g, " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="workplace">Workplace</Label>
+                      <Input id="workplace" {...form.register("workplace")} placeholder="Company/Institution name" />
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Parent/Guardian Information Section */}
-              <div className="bg-gradient-to-r from-secondary/5 to-secondary/10 p-6 rounded-lg border">
-                <h3 className="text-2xl font-semibold flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center">
-                    <span className="text-secondary-foreground font-bold">4</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="workPhone">Work Phone</Label>
+                      <Input id="workPhone" {...form.register("workPhone")} placeholder="+94XXXXXXXXX" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="educationLevel">Education Level</Label>
+                      <Input id="educationLevel" {...form.register("educationLevel")} placeholder="e.g., Bachelor's Degree" />
+                    </div>
                   </div>
-                  Parent/Guardian Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="fatherId" className="text-base font-semibold">Father ID</Label>
-                    <Input
-                      id="fatherId"
-                      value={formData.fatherId}
-                      onChange={(e) => handleInputChange('fatherId', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter father's ID"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="fatherPhoneNumber" className="text-base font-semibold">Father Phone Number</Label>
-                    <Input
-                      id="fatherPhoneNumber"
-                      value={formData.fatherPhoneNumber}
-                      onChange={(e) => handleInputChange('fatherPhoneNumber', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="+94771234567"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="motherId" className="text-base font-semibold">Mother ID</Label>
-                    <Input
-                      id="motherId"
-                      value={formData.motherId}
-                      onChange={(e) => handleInputChange('motherId', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter mother's ID"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="motherPhoneNumber" className="text-base font-semibold">Mother Phone Number</Label>
-                    <Input
-                      id="motherPhoneNumber"
-                      value={formData.motherPhoneNumber}
-                      onChange={(e) => handleInputChange('motherPhoneNumber', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="+94777654321"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="guardianId" className="text-base font-semibold">Guardian ID</Label>
-                    <Input
-                      id="guardianId"
-                      value={formData.guardianId}
-                      onChange={(e) => handleInputChange('guardianId', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter guardian's ID"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="guardianPhoneNumber" className="text-base font-semibold">Guardian Phone Number</Label>
-                    <Input
-                      id="guardianPhoneNumber"
-                      value={formData.guardianPhoneNumber}
-                      onChange={(e) => handleInputChange('guardianPhoneNumber', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="+94773333333"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Professional Information Section */}
-              <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-lg border">
-                <h3 className="text-2xl font-semibold flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                    <span className="text-primary font-bold">5</span>
-                  </div>
-                  Professional Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="occupation" className="text-base font-semibold">Occupation</Label>
-                    <Input
-                      id="occupation"
-                      value={formData.occupation}
-                      onChange={(e) => handleInputChange('occupation', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="e.g., ENGINEER"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="workplace" className="text-base font-semibold">Workplace</Label>
-                    <Input
-                      id="workplace"
-                      value={formData.workplace}
-                      onChange={(e) => handleInputChange('workplace', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter workplace"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="workPhone" className="text-base font-semibold">Work Phone</Label>
-                    <Input
-                      id="workPhone"
-                      value={formData.workPhone}
-                      onChange={(e) => handleInputChange('workPhone', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="+94112345678"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="educationLevel" className="text-base font-semibold">Education Level</Label>
-                    <Input
-                      id="educationLevel"
-                      value={formData.educationLevel}
-                      onChange={(e) => handleInputChange('educationLevel', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="e.g., Bachelor of Engineering"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Information Section */}
-              <div className="bg-gradient-to-r from-secondary/5 to-secondary/10 p-6 rounded-lg border">
-                <h3 className="text-2xl font-semibold flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center">
-                    <span className="text-secondary-foreground font-bold">6</span>
-                  </div>
-                  Address Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="addressLine1" className="text-base font-semibold">Address Line 1</Label>
-                    <Input
-                      id="addressLine1"
-                      value={formData.addressLine1}
-                      onChange={(e) => handleInputChange('addressLine1', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Street address"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="addressLine2" className="text-base font-semibold">Address Line 2</Label>
-                    <Input
-                      id="addressLine2"
-                      value={formData.addressLine2}
-                      onChange={(e) => handleInputChange('addressLine2', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Area, landmark"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="city" className="text-base font-semibold">City</Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter city"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="district" className="text-base font-semibold">District</Label>
-                    <Input
-                      id="district"
-                      value={formData.district}
-                      onChange={(e) => handleInputChange('district', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter district"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="province" className="text-base font-semibold">Province</Label>
-                    <Input
-                      id="province"
-                      value={formData.province}
-                      onChange={(e) => handleInputChange('province', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter province"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="postalCode" className="text-base font-semibold">Postal Code</Label>
-                    <Input
-                      id="postalCode"
-                      value={formData.postalCode}
-                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Enter postal code"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <Label htmlFor="country" className="text-base font-semibold">Country</Label>
-                    <Input
-                      id="country"
-                      value={formData.country}
-                      onChange={(e) => handleInputChange('country', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Sri Lanka"
-                    />
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
-          </div>
+          </ScrollArea>
 
-          <div className="flex flex-col sm:flex-row justify-end gap-4 pt-8 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto h-12 px-8 text-base">
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || isLoading} className="w-full sm:w-auto h-12 px-8 text-base bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
-              {loading || isLoading ? 'Creating...' : (initialData ? 'Update User' : 'Create User')}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create User
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default CreateUserForm;
+}
