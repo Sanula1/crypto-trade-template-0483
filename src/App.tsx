@@ -21,6 +21,7 @@ import CardOrdersPage from "./pages/CardOrdersPage";
 import CardPaymentsPage from "./pages/CardPaymentsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import FamilyManagementPage from "./pages/FamilyManagementPage";
+import ProfileImagePage from "./pages/ProfileImagePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/dashboard/card-payments" element={<CardPaymentsPage />} />
             <Route path="/dashboard/notifications" element={<NotificationsPage />} />
             <Route path="/dashboard/family-management" element={<FamilyManagementPage />} />
+            <Route path="/dashboard/profile-images" element={<ProfileImagePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

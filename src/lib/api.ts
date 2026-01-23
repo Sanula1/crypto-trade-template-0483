@@ -695,4 +695,58 @@ export const api = {
   // Get Subjects by Class
   getSubjectsByClass: (classId: string) =>
     apiRequest(`/subjects?classId=${classId}`),
+
+  // =============== PROFILE IMAGE MANAGEMENT ===============
+
+  // Lookup Student User by Student ID
+  lookupStudentUser: (studentId: string) =>
+    apiRequest(`/admin/users/student/lookup/${studentId}`),
+
+  // Generate Signed URL for Student Profile Image Upload
+  generateStudentProfileImageUrl: (data: {
+    studentId: string;
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+  }) =>
+    apiRequest("/admin/users/student/profile-image/generate-url", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Assign Profile Image to Student User
+  assignStudentProfileImage: (data: {
+    studentId: string;
+    imageKey: string;
+  }) =>
+    apiRequest("/admin/users/student/profile-image/assign", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Lookup User by User ID
+  lookupUser: (userId: string) =>
+    apiRequest(`/admin/users/lookup/${userId}`),
+
+  // Generate Signed URL for User Profile Image Upload
+  generateUserProfileImageUrl: (data: {
+    userId: string;
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+  }) =>
+    apiRequest("/admin/users/profile-image/generate-url", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Assign Profile Image to User
+  assignUserProfileImage: (data: {
+    userId: string;
+    imageKey: string;
+  }) =>
+    apiRequest("/admin/users/profile-image/assign", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };

@@ -17,6 +17,7 @@ import {
   GraduationCap,
   Bell,
   Users2,
+  ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +51,7 @@ const navItems = [
   { to: "/dashboard/advertisement", icon: Megaphone, label: "Advertisement" },
   { to: "/dashboard/notifications", icon: Bell, label: "Push Notifications" },
   { to: "/dashboard/family-management", icon: Users2, label: "Family Management" },
+  { to: "/dashboard/profile-images", icon: ImageIcon, label: "Profile Images" },
 ];
 
 export function AppSidebar() {

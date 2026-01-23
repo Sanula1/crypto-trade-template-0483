@@ -1,0 +1,622 @@
+import { useState, useCallback } from "react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PageHeader } from "@/components/shared/PageComponents";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Search, 
+  Upload, 
+  User, 
+  GraduationCap, 
+  ImageIcon, 
+  CheckCircle2, 
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  X
+} from "lucide-react";
+
+// Types
+interface UserProfile {
+  userId: string;
+  studentId?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  profileImage?: string;
+  gender?: string;
+  isVerified?: boolean;
+}
+
+interface UploadState {
+  status: 'idle' | 'generating' | 'uploading' | 'assigning' | 'completed' | 'error';
+  progress: number;
+  message: string;
+}
+
+// Constants
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+export default function ProfileImagePage() {
+  const { toast } = useToast();
+  
+  // Lookup states
+  const [studentId, setStudentId] = useState("");
+  const [userId, setUserId] = useState("");
+  const [lookupType, setLookupType] = useState<'student' | 'user'>('student');
+  
+  // User profile state
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Upload states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>({
+    status: 'idle',
+    progress: 0,
+    message: ''
+  });
+
+  // Reset states
+  const resetAll = useCallback(() => {
+    setUserProfile(null);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setUploadState({ status: 'idle', progress: 0, message: '' });
+    setStudentId("");
+    setUserId("");
+  }, []);
+
+  const resetUpload = useCallback(() => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setUploadState({ status: 'idle', progress: 0, message: '' });
+  }, []);
+
+  // Lookup user by Student ID
+  const handleStudentLookup = async () => {
+    if (!studentId.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a Student ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearching(true);
+    resetUpload();
+    
+    try {
+      const response = await api.lookupStudentUser(studentId.trim());
+      setUserProfile({
+        ...response.user,
+        studentId: studentId.trim()
+      });
+      toast({
+        title: "User Found",
+        description: `Found profile for ${response.user.firstName} ${response.user.lastName}`,
+      });
+    } catch (error: any) {
+      console.error("Student lookup error:", error);
+      setUserProfile(null);
+      toast({
+        title: "Not Found",
+        description: error.message || "No user found with this Student ID",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Lookup user by User ID
+  const handleUserLookup = async () => {
+    if (!userId.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a User ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearching(true);
+    resetUpload();
+    
+    try {
+      const response = await api.lookupUser(userId.trim());
+      setUserProfile(response.user);
+      toast({
+        title: "User Found",
+        description: `Found profile for ${response.user.firstName} ${response.user.lastName}`,
+      });
+    } catch (error: any) {
+      console.error("User lookup error:", error);
+      setUserProfile(null);
+      toast({
+        title: "Not Found",
+        description: error.message || "No user found with this User ID",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select a JPEG, PNG, GIF, or WebP image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File Too Large",
+        description: "Maximum file size is 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setUploadState({ status: 'idle', progress: 0, message: '' });
+  };
+
+  // Upload profile image
+  const handleUpload = async () => {
+    if (!selectedFile || !userProfile) return;
+
+    try {
+      // Step 1: Generate signed URL
+      setUploadState({ 
+        status: 'generating', 
+        progress: 10, 
+        message: 'Generating upload URL...' 
+      });
+
+      let signedUrlResponse;
+      
+      if (lookupType === 'student' && userProfile.studentId) {
+        signedUrlResponse = await api.generateStudentProfileImageUrl({
+          studentId: userProfile.studentId,
+          fileName: selectedFile.name,
+          contentType: selectedFile.type,
+          fileSize: selectedFile.size,
+        });
+      } else {
+        signedUrlResponse = await api.generateUserProfileImageUrl({
+          userId: userProfile.userId,
+          fileName: selectedFile.name,
+          contentType: selectedFile.type,
+          fileSize: selectedFile.size,
+        });
+      }
+
+      const { uploadUrl, imageKey } = signedUrlResponse;
+
+      // Step 2: Upload to cloud storage
+      setUploadState({ 
+        status: 'uploading', 
+        progress: 30, 
+        message: 'Uploading image...' 
+      });
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: {
+          'Content-Type': selectedFile.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload image to cloud storage');
+      }
+
+      setUploadState({ 
+        status: 'uploading', 
+        progress: 70, 
+        message: 'Upload complete. Assigning to profile...' 
+      });
+
+      // Step 3: Assign image to user profile
+      setUploadState({ 
+        status: 'assigning', 
+        progress: 85, 
+        message: 'Assigning image to profile...' 
+      });
+
+      if (lookupType === 'student' && userProfile.studentId) {
+        await api.assignStudentProfileImage({
+          studentId: userProfile.studentId,
+          imageKey: imageKey,
+        });
+      } else {
+        await api.assignUserProfileImage({
+          userId: userProfile.userId,
+          imageKey: imageKey,
+        });
+      }
+
+      // Success
+      setUploadState({ 
+        status: 'completed', 
+        progress: 100, 
+        message: 'Profile image updated successfully!' 
+      });
+
+      // Update user profile with new image
+      setUserProfile(prev => prev ? { ...prev, profileImage: imageKey } : null);
+
+      toast({
+        title: "Success",
+        description: "Profile image has been updated successfully!",
+      });
+
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      setUploadState({ 
+        status: 'error', 
+        progress: 0, 
+        message: error.message || 'Failed to upload image' 
+      });
+      toast({
+        title: "Upload Failed",
+        description: error.message || "An error occurred during upload",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Render progress status
+  const renderUploadStatus = () => {
+    if (uploadState.status === 'idle') return null;
+
+    const statusConfig = {
+      generating: { icon: Loader2, color: 'text-blue-500', iconClass: 'animate-spin' },
+      uploading: { icon: Upload, color: 'text-blue-500', iconClass: 'animate-pulse' },
+      assigning: { icon: Loader2, color: 'text-blue-500', iconClass: 'animate-spin' },
+      completed: { icon: CheckCircle2, color: 'text-green-500', iconClass: '' },
+      error: { icon: AlertCircle, color: 'text-red-500', iconClass: '' },
+    };
+
+    const config = statusConfig[uploadState.status as keyof typeof statusConfig];
+    if (!config) return null;
+
+    const Icon = config.icon;
+
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${config.color} ${config.iconClass}`} />
+          <span className={config.color}>{uploadState.message}</span>
+        </div>
+        {uploadState.status !== 'error' && uploadState.status !== 'completed' && (
+          <Progress value={uploadState.progress} className="h-2" />
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <DashboardLayout>
+      <PageHeader
+        title="Profile Image Management"
+        description="Upload and manage user profile images"
+        icon={ImageIcon}
+      />
+      <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Lookup Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                User Lookup
+              </CardTitle>
+              <CardDescription>
+                Search for a user by Student ID or User ID
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={lookupType} onValueChange={(v) => {
+                setLookupType(v as 'student' | 'user');
+                resetAll();
+              }}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="student" className="flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4" />
+                    By Student ID
+                  </TabsTrigger>
+                  <TabsTrigger value="user" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    By User ID
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="student" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="studentId">Student ID</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="studentId"
+                        placeholder="Enter student ID (e.g., STU-2024-001)"
+                        value={studentId}
+                        onChange={(e) => setStudentId(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleStudentLookup()}
+                      />
+                      <Button 
+                        onClick={handleStudentLookup} 
+                        disabled={isSearching}
+                      >
+                        {isSearching ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="user" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="userId">User ID</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="userId"
+                        placeholder="Enter user ID (e.g., 12345)"
+                        value={userId}
+                        onChange={(e) => setUserId(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleUserLookup()}
+                      />
+                      <Button 
+                        onClick={handleUserLookup} 
+                        disabled={isSearching}
+                      >
+                        {isSearching ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* User Profile Display */}
+              {userProfile && (
+                <div className="mt-6 p-4 border rounded-lg bg-muted/50">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage 
+                        src={userProfile.profileImage || undefined} 
+                        alt={`${userProfile.firstName} ${userProfile.lastName}`}
+                      />
+                      <AvatarFallback className="text-lg">
+                        {userProfile.firstName?.charAt(0)}{userProfile.lastName?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-lg">
+                          {userProfile.firstName} {userProfile.lastName}
+                        </h3>
+                        {userProfile.isVerified && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Verified
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{userProfile.email}</p>
+                      {userProfile.phone && (
+                        <p className="text-sm text-muted-foreground">{userProfile.phone}</p>
+                      )}
+                      {userProfile.studentId && (
+                        <Badge variant="outline">Student ID: {userProfile.studentId}</Badge>
+                      )}
+                      <Badge variant="outline">User ID: {userProfile.userId}</Badge>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={resetAll}
+                      title="Clear"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upload Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                Upload Profile Image
+              </CardTitle>
+              <CardDescription>
+                Upload a new profile image for the selected user
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!userProfile ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <User className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    Search for a user first to upload their profile image
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* File Input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="profileImage">Select Image</Label>
+                    <Input
+                      id="profileImage"
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleFileSelect}
+                      disabled={uploadState.status !== 'idle' && uploadState.status !== 'error' && uploadState.status !== 'completed'}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Supported formats: JPEG, PNG, GIF, WebP. Max size: 5MB
+                    </p>
+                  </div>
+
+                  {/* Preview */}
+                  {previewUrl && (
+                    <div className="space-y-2">
+                      <Label>Preview</Label>
+                      <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
+                        <div className="relative">
+                          <img
+                            src={previewUrl}
+                            alt="Preview"
+                            className="h-24 w-24 rounded-full object-cover border-2"
+                          />
+                          {uploadState.status === 'completed' && (
+                            <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
+                              <CheckCircle2 className="h-4 w-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{selectedFile?.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedFile && (selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Status */}
+                  {renderUploadStatus()}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4">
+                    {uploadState.status === 'completed' ? (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          onClick={resetUpload}
+                          className="flex-1"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Upload Another
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleUpload}
+                          disabled={
+                            !selectedFile || 
+                            (uploadState.status !== 'idle' && uploadState.status !== 'error')
+                          }
+                          className="flex-1"
+                        >
+                          {uploadState.status === 'generating' || 
+                           uploadState.status === 'uploading' || 
+                           uploadState.status === 'assigning' ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Image
+                            </>
+                          )}
+                        </Button>
+                        {selectedFile && uploadState.status === 'idle' && (
+                          <Button variant="outline" onClick={resetUpload}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Instructions Card */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Instructions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                  1
+                </div>
+                <div>
+                  <h4 className="font-medium">Search User</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Look up the user by their Student ID or User ID
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-medium">Select Image</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Choose a profile image (max 5MB, JPEG/PNG/GIF/WebP)
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                  3
+                </div>
+                <div>
+                  <h4 className="font-medium">Upload</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Click upload to save the image to the user's profile
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+}
