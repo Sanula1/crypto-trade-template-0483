@@ -156,6 +156,9 @@ export function CreateInstituteForm({
 
       const payload = {
         ...data,
+        // Some backend versions read `instituteType` (while responses use `type`).
+        // Send both to avoid the backend defaulting to `school`.
+        instituteType: data.type,
         logoUrl: logoUrl || undefined,
         imageUrl: imageUrl || undefined,
         // Remove empty URL strings - API requires valid URLs or undefined
