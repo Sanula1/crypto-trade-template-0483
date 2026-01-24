@@ -80,7 +80,7 @@ export function IncompleteProfilesList({ onRefresh }: IncompleteProfilesListProp
     switch (status) {
       case ProfileCompletionStatus.COMPLETE:
         return 'bg-green-500';
-      case ProfileCompletionStatus.PENDING_VERIFICATION:
+      case ProfileCompletionStatus.BASIC:
         return 'bg-yellow-500';
       case ProfileCompletionStatus.INCOMPLETE:
       default:

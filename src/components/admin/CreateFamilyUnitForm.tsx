@@ -326,7 +326,9 @@ export function CreateFamilyUnitForm({
         instituteCardId: enrollment.instituteCardId || undefined,
         classEnrollments: enrollment.classEnrollments?.map(classEnr => ({
           classId: classEnr.classId,
-          subjectEnrollments: classEnr.subjectEnrollments?.filter(s => s.subjectId),
+          subjectEnrollments: classEnr.subjectEnrollments
+            ?.filter((s): s is { subjectId: string } => !!s.subjectId)
+            .map(s => ({ subjectId: s.subjectId })),
         })).filter(c => c.classId),
       })).filter(e => e.instituteId);
     }
