@@ -346,7 +346,7 @@ student3@example.com,,Sunil,Fernando,MALE,father3@example.com,,,,,,,`;
                           key={index}
                           className="text-sm text-destructive-foreground bg-destructive/20 p-2 rounded"
                         >
-                          Row {r.index + 1}: {r.error}
+                          Row {r.index + 1}: {r.error?.message || 'Unknown error'}
                         </div>
                       ))}
                   </div>
