@@ -1,6 +1,15 @@
 const BASE_URL = "https://lmsapi.suraksha.lk";
 
-export const getAuthToken = () => localStorage.getItem("access_token");
+export const getAuthToken = () => {
+  try {
+    const sessionStr = localStorage.getItem("session_info");
+    if (sessionStr) {
+      const session = JSON.parse(sessionStr);
+      return session.accessToken || null;
+    }
+  } catch {}
+  return null;
+};
 
 export const apiRequest = async (
   endpoint: string,
@@ -16,6 +25,7 @@ export const apiRequest = async (
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers,
   });
 
@@ -52,14 +62,11 @@ export const apiRequest = async (
 };
 
 export const api = {
-  // Auth
-  login: (email: string, password: string) =>
-    apiRequest("/v2/auth/login", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
+  // Auth (handled by AuthContext — kept here for reference)
+  login: (identifier: string, password: string, rememberMe = false) =>
+    apiRequest("/auth/v2/login", {
+      method: "POST",
+      body: JSON.stringify({ identifier, password, rememberMe }),
     }),
 
   // Users
