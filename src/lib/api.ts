@@ -756,4 +756,69 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  // =============== AUTH & SESSION MANAGEMENT ===============
+
+  // Get current user profile
+  getCurrentUser: () =>
+    apiRequest("/auth/me"),
+
+  // Forgot password - send OTP
+  forgotPassword: (identifier: string) =>
+    apiRequest("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ identifier }),
+    }),
+
+  // Reset password with OTP
+  resetPassword: (data: {
+    identifier: string;
+    otp: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) =>
+    apiRequest("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Change password (authenticated)
+  changePasswordAuthenticated: (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) =>
+    apiRequest("/auth/change-password-authenticated", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Get active sessions
+  getActiveSessions: (params: {
+    page?: number;
+    limit?: number;
+    platform?: 'web' | 'android' | 'ios';
+    sortBy?: 'createdAt' | 'expiresAt' | 'platform';
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append("page", String(params.page));
+    if (params.limit) queryParams.append("limit", String(params.limit));
+    if (params.platform) queryParams.append("platform", params.platform);
+    if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+    return apiRequest(`/auth/sessions?${queryParams.toString()}`);
+  },
+
+  // Revoke a specific session
+  revokeSession: (sessionId: string) =>
+    apiRequest(`/auth/sessions/revoke/${sessionId}`, {
+      method: "POST",
+    }),
+
+  // Revoke all sessions
+  revokeAllSessions: () =>
+    apiRequest("/auth/sessions/revoke-all", {
+      method: "POST",
+    }),
 };
