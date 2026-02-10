@@ -64,7 +64,7 @@ export const apiRequest = async (
 export const api = {
   // Auth (handled by AuthContext — kept here for reference)
   login: (identifier: string, password: string, rememberMe = false) =>
-    apiRequest("/auth/login", {
+    apiRequest("/v2/auth/login", {
       method: "POST",
       body: JSON.stringify({ identifier, password, rememberMe }),
     }),
