@@ -18,6 +18,7 @@ import {
   Bell,
   Users2,
   ImageIcon,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,7 @@ const navItems = [
   { to: "/dashboard/notifications", icon: Bell, label: "Push Notifications" },
   { to: "/dashboard/family-management", icon: Users2, label: "Family Management" },
   { to: "/dashboard/profile-images", icon: ImageIcon, label: "Profile Images" },
+  { to: "/dashboard/session-management", icon: Shield, label: "Session Management" },
 ];
 
 export function AppSidebar() {

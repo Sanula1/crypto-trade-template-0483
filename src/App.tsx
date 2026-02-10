@@ -22,6 +22,7 @@ import CardPaymentsPage from "./pages/CardPaymentsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import FamilyManagementPage from "./pages/FamilyManagementPage";
 import ProfileImagePage from "./pages/ProfileImagePage";
+import SessionManagementPage from "./pages/SessionManagementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/dashboard/notifications" element={<NotificationsPage />} />
             <Route path="/dashboard/family-management" element={<FamilyManagementPage />} />
             <Route path="/dashboard/profile-images" element={<ProfileImagePage />} />
+            <Route path="/dashboard/session-management" element={<SessionManagementPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
