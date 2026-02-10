@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const body: Record<string, string> = {};
       if (refreshToken) body.refresh_token = refreshToken;
 
-      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+      const response = await fetch(`${BASE_URL}/v2/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (identifier: string, password: string, rememberMe = false): Promise<boolean> => {
     try {
-      const response = await fetch(`${BASE_URL}/auth/login`, {
+      const response = await fetch(`${BASE_URL}/v2/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const body: Record<string, string> = {};
       if (sessionInfo?.refreshToken) body.refresh_token = sessionInfo.refreshToken;
 
-      await fetch(`${BASE_URL}/auth/logout`, {
+      await fetch(`${BASE_URL}/v2/auth/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
