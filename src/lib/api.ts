@@ -821,4 +821,156 @@ export const api = {
     apiRequest("/auth/sessions/revoke-all", {
       method: "POST",
     }),
+
+  // =============== CALENDAR MANAGEMENT ===============
+
+  // Get today's calendar day
+  getCalendarToday: (instituteId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/today`),
+
+  // Get operating config
+  getOperatingConfig: (instituteId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/operating-config`),
+
+  // Set single day operating config
+  setOperatingConfig: (instituteId: string, data: {
+    dayOfWeek: number;
+    isOperating: boolean;
+    startTime?: string;
+    endTime?: string;
+    academicYear: string;
+  }) =>
+    apiRequest(`/institutes/${instituteId}/calendar/operating-config`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Set bulk operating config
+  setOperatingConfigBulk: (instituteId: string, data: {
+    academicYear: string;
+    configs: Array<{
+      dayOfWeek: number;
+      isOperating: boolean;
+      startTime?: string;
+      endTime?: string;
+    }>;
+  }) =>
+    apiRequest(`/institutes/${instituteId}/calendar/operating-config/bulk`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Generate academic year calendar
+  generateCalendar: (instituteId: string, data: {
+    academicYear: string;
+    startDate: string;
+    endDate: string;
+    publicHolidays?: Array<{ date: string; title: string }>;
+    termBreaks?: Array<{ startDate: string; endDate: string; title: string }>;
+  }) =>
+    apiRequest(`/institutes/${instituteId}/calendar/generate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Delete calendar for academic year
+  deleteCalendar: (instituteId: string, academicYear: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/${academicYear}`, {
+      method: "DELETE",
+    }),
+
+  // Get calendar days with filters
+  getCalendarDays: (instituteId: string, params: {
+    startDate?: string;
+    endDate?: string;
+    academicYear?: string;
+    dayType?: string;
+    limit?: number;
+    page?: number;
+  } = {}) => {
+    const q = new URLSearchParams();
+    if (params.startDate) q.append("startDate", params.startDate);
+    if (params.endDate) q.append("endDate", params.endDate);
+    if (params.academicYear) q.append("academicYear", params.academicYear);
+    if (params.dayType) q.append("dayType", params.dayType);
+    if (params.limit) q.append("limit", String(params.limit));
+    if (params.page) q.append("page", String(params.page));
+    return apiRequest(`/institutes/${instituteId}/calendar/days?${q.toString()}`);
+  },
+
+  // Update a calendar day
+  updateCalendarDay: (instituteId: string, calendarDayId: string, data: {
+    dayType?: string;
+    title?: string;
+    description?: string;
+    startTime?: string;
+    endTime?: string;
+    isAttendanceExpected?: boolean;
+  }) =>
+    apiRequest(`/institutes/${instituteId}/calendar/days/${calendarDayId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // Delete a calendar day
+  deleteCalendarDay: (instituteId: string, calendarDayId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/days/${calendarDayId}`, {
+      method: "DELETE",
+    }),
+
+  // Get events for a calendar day
+  getCalendarDayEvents: (instituteId: string, calendarDayId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/days/${calendarDayId}/events`),
+
+  // Create calendar event
+  createCalendarEvent: (instituteId: string, data: {
+    calendarDayId?: string;
+    calendarDate?: string;
+    eventType: string;
+    title: string;
+    description?: string;
+    eventDate: string;
+    startTime?: string;
+    endTime?: string;
+    isAllDay?: boolean;
+    isAttendanceTracked?: boolean;
+    isDefault?: boolean;
+    targetUserTypes?: string[];
+    attendanceOpenTo?: string;
+    targetScope?: string;
+    targetClassIds?: string[];
+    targetSubjectIds?: string[];
+    venue?: string;
+    status?: string;
+    isMandatory?: boolean;
+    maxParticipants?: number;
+    notes?: string;
+  }) =>
+    apiRequest(`/institutes/${instituteId}/calendar/events`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Update calendar event
+  updateCalendarEvent: (instituteId: string, eventId: string, data: Record<string, any>) =>
+    apiRequest(`/institutes/${instituteId}/calendar/events/${eventId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // Delete calendar event
+  deleteCalendarEvent: (instituteId: string, eventId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/events/${eventId}`, {
+      method: "DELETE",
+    }),
+
+  // Cache stats
+  getCalendarCacheStats: (instituteId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/cache/stats`),
+
+  // Invalidate cache
+  invalidateCalendarCache: (instituteId: string) =>
+    apiRequest(`/institutes/${instituteId}/calendar/cache/invalidate`, {
+      method: "POST",
+    }),
 };
