@@ -973,4 +973,174 @@ export const api = {
     apiRequest(`/institutes/${instituteId}/calendar/cache/invalidate`, {
       method: "POST",
     }),
+
+  // =============== ATTENDANCE DEVICE MANAGEMENT (System Admin) ===============
+
+  // Register device
+  registerDevice: (data: {
+    deviceUid: string;
+    deviceName: string;
+    deviceType?: string;
+    instituteId?: string;
+    instituteName?: string;
+    description?: string;
+    metadata?: Record<string, any>;
+  }) =>
+    apiRequest("/api/admin/attendance-devices", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Update device
+  updateDevice: (deviceId: string, data: {
+    deviceName?: string;
+    deviceType?: string;
+    description?: string;
+    firmwareVersion?: string;
+    metadata?: Record<string, any>;
+  }) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // Delete device
+  deleteDevice: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}`, {
+      method: "DELETE",
+    }),
+
+  // List all devices
+  getDevices: (params: {
+    page?: number;
+    limit?: number;
+    instituteId?: string;
+    status?: string;
+    deviceType?: string;
+    isEnabled?: boolean;
+    search?: string;
+  } = {}) => {
+    const q = new URLSearchParams();
+    if (params.page) q.append("page", String(params.page));
+    if (params.limit) q.append("limit", String(params.limit));
+    if (params.instituteId) q.append("instituteId", params.instituteId);
+    if (params.status) q.append("status", params.status);
+    if (params.deviceType) q.append("deviceType", params.deviceType);
+    if (params.isEnabled !== undefined) q.append("isEnabled", String(params.isEnabled));
+    if (params.search) q.append("search", params.search);
+    return apiRequest(`/api/admin/attendance-devices?${q.toString()}`);
+  },
+
+  // Get device detail
+  getDeviceDetail: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}`),
+
+  // Get system stats
+  getDeviceStats: () =>
+    apiRequest("/api/admin/attendance-devices/stats"),
+
+  // Assign to institute
+  assignDeviceToInstitute: (deviceId: string, data: {
+    instituteId: string;
+    instituteName?: string;
+  }) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/assign`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Unassign from institute
+  unassignDevice: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/unassign`, {
+      method: "POST",
+    }),
+
+  // Change institute
+  changeDeviceInstitute: (deviceId: string, data: {
+    instituteId: string;
+    instituteName?: string;
+  }) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/change-institute`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Enable device
+  enableDevice: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/enable`, {
+      method: "POST",
+    }),
+
+  // Disable device
+  disableDevice: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/disable`, {
+      method: "POST",
+    }),
+
+  // Block device
+  blockDevice: (deviceId: string, reason?: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/block`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+
+  // Unblock device
+  unblockDevice: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/unblock`, {
+      method: "POST",
+    }),
+
+  // Get device config
+  getDeviceConfig: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/config`),
+
+  // Update device config
+  updateDeviceConfig: (deviceId: string, data: {
+    maxSessions?: number;
+    rateLimitPerMinute?: number;
+    rateLimitPerHour?: number;
+    allowedStatusMode?: string;
+    allowedStatusList?: string[];
+    autoStatus?: string;
+    requireLocation?: boolean;
+    requirePhoto?: boolean;
+    allowedIpRanges?: string[];
+    operatingStartTime?: string;
+    operatingEndTime?: string;
+  }) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/config`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // Bind event to device
+  bindDeviceEvent: (deviceId: string, data: {
+    eventId: number;
+    eventName?: string;
+    calendarDayId?: number;
+    statusOverride?: string;
+    notes?: string;
+  }) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/bind-event`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Unbind event from device
+  unbindDeviceEvent: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/unbind-event`, {
+      method: "POST",
+    }),
+
+  // Get binding history
+  getDeviceBindings: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/bindings`),
+
+  // Get device audit log
+  getDeviceAuditLog: (deviceId: string, limit = 50) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/audit?limit=${limit}`),
+
+  // Get device active sessions
+  getDeviceSessions: (deviceId: string) =>
+    apiRequest(`/api/admin/attendance-devices/${deviceId}/sessions`),
 };

@@ -20,6 +20,7 @@ import {
   ImageIcon,
   Shield,
   CalendarDays,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +57,7 @@ const navItems = [
   { to: "/dashboard/profile-images", icon: ImageIcon, label: "Profile Images" },
   { to: "/dashboard/session-management", icon: Shield, label: "Session Management" },
   { to: "/dashboard/calendar-management", icon: CalendarDays, label: "Calendar Management" },
+  { to: "/dashboard/device-management", icon: Smartphone, label: "Device Management" },
 ];
 
 export function AppSidebar() {
