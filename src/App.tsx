@@ -24,6 +24,7 @@ import FamilyManagementPage from "./pages/FamilyManagementPage";
 import ProfileImagePage from "./pages/ProfileImagePage";
 import SessionManagementPage from "./pages/SessionManagementPage";
 import CalendarManagementPage from "./pages/CalendarManagementPage";
+import DeviceManagementPage from "./pages/DeviceManagementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/dashboard/profile-images" element={<ProfileImagePage />} />
             <Route path="/dashboard/session-management" element={<SessionManagementPage />} />
             <Route path="/dashboard/calendar-management" element={<CalendarManagementPage />} />
+            <Route path="/dashboard/device-management" element={<DeviceManagementPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
