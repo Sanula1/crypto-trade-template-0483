@@ -1,70 +1,80 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import UsersPage from "./pages/UsersPage";
-import InstitutePage from "./pages/InstitutePage";
-import SubjectsPage from "./pages/SubjectsPage";
-import StructuredLecturesPage from "./pages/StructuredLecturesPage";
-import TransportPage from "./pages/TransportPage";
-import SystemPaymentPage from "./pages/SystemPaymentPage";
-import SMSPage from "./pages/SMSPage";
-import SMSPaymentPage from "./pages/SMSPaymentPage";
-import AdvertisementPage from "./pages/AdvertisementPage";
-import OrganizationPage from "./pages/OrganizationPage";
-import CardManagementPage from "./pages/CardManagementPage";
-import CardOrdersPage from "./pages/CardOrdersPage";
-import CardPaymentsPage from "./pages/CardPaymentsPage";
-import NotificationsPage from "./pages/NotificationsPage";
-import FamilyManagementPage from "./pages/FamilyManagementPage";
-import ProfileImagePage from "./pages/ProfileImagePage";
-import SessionManagementPage from "./pages/SessionManagementPage";
-import CalendarManagementPage from "./pages/CalendarManagementPage";
-import DeviceManagementPage from "./pages/DeviceManagementPage";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
-const queryClient = new QueryClient();
+// Pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import ClassesPage from './pages/ClassesPage';
+import ClassDetailPage from './pages/ClassDetailPage';
+import RecordingPlayerPage from './pages/RecordingPlayerPage';
+import PaymentSubmitPage from './pages/PaymentSubmitPage';
+import MyPaymentsPage from './pages/MyPaymentsPage';
+import WatchHistoryPage from './pages/WatchHistoryPage';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/users" element={<UsersPage />} />
-            <Route path="/dashboard/institute" element={<InstitutePage />} />
-            <Route path="/dashboard/subjects" element={<SubjectsPage />} />
-            <Route path="/dashboard/structured-lectures" element={<StructuredLecturesPage />} />
-            <Route path="/dashboard/transport" element={<TransportPage />} />
-            <Route path="/dashboard/system-payment" element={<SystemPaymentPage />} />
-            <Route path="/dashboard/sms" element={<SMSPage />} />
-            <Route path="/dashboard/sms-payment" element={<SMSPaymentPage />} />
-            <Route path="/dashboard/advertisement" element={<AdvertisementPage />} />
-            <Route path="/dashboard/organizations" element={<OrganizationPage />} />
-            <Route path="/dashboard/card-management" element={<CardManagementPage />} />
-            <Route path="/dashboard/card-orders" element={<CardOrdersPage />} />
-            <Route path="/dashboard/card-payments" element={<CardPaymentsPage />} />
-            <Route path="/dashboard/notifications" element={<NotificationsPage />} />
-            <Route path="/dashboard/family-management" element={<FamilyManagementPage />} />
-            <Route path="/dashboard/profile-images" element={<ProfileImagePage />} />
-            <Route path="/dashboard/session-management" element={<SessionManagementPage />} />
-            <Route path="/dashboard/calendar-management" element={<CalendarManagementPage />} />
-            <Route path="/dashboard/device-management" element={<DeviceManagementPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+// Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminStudents from './pages/admin/AdminStudents';
+import AdminClasses from './pages/admin/AdminClasses';
+import AdminClassDetail from './pages/admin/AdminClassDetail';
+import AdminSlips from './pages/admin/AdminSlips';
+import AdminAttendance from './pages/admin/AdminAttendance';
+import AdminRecordingHistory from './pages/admin/AdminRecordingHistory';
 
-export default App;
+import Layout from './components/Layout';
+
+function ProtectedRoute({ children, role }: { children: React.ReactNode; role?: string }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  if (!user) return <Navigate to="/login" />;
+  if (role && user.role !== role) return <Navigate to="/dashboard" />;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <div className="flex justify-center items-center h-screen text-lg">Loading...</div>;
+
+  return (
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
+      <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <RegisterPage />} />
+
+      {/* Fullscreen recording player — outside Layout */}
+      <Route path="recording/:id" element={<ProtectedRoute><RecordingPlayerPage /></ProtectedRoute>} />
+
+      <Route path="/" element={<Layout />}>
+        <Route index element={<ClassesPage />} />
+        <Route path="classes" element={<ClassesPage />} />
+        <Route path="classes/:id" element={<Navigate to="class-recordings" replace />} />
+        <Route path="classes/:id/class-recordings" element={<ClassDetailPage />} />
+        <Route path="dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="payments/submit" element={<ProtectedRoute><PaymentSubmitPage /></ProtectedRoute>} />
+        <Route path="payments/my" element={<ProtectedRoute><MyPaymentsPage /></ProtectedRoute>} />
+        <Route path="watch-history" element={<ProtectedRoute><WatchHistoryPage /></ProtectedRoute>} />
+
+        <Route path="admin" element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
+        <Route path="admin/students" element={<ProtectedRoute role="ADMIN"><AdminStudents /></ProtectedRoute>} />
+        <Route path="admin/classes" element={<ProtectedRoute role="ADMIN"><AdminClasses /></ProtectedRoute>} />
+        <Route path="admin/classes/:id" element={<ProtectedRoute role="ADMIN"><AdminClassDetail /></ProtectedRoute>} />
+        <Route path="admin/slips" element={<ProtectedRoute role="ADMIN"><AdminSlips /></ProtectedRoute>} />
+        <Route path="admin/attendance" element={<ProtectedRoute role="ADMIN"><AdminAttendance /></ProtectedRoute>} />
+        <Route path="admin/recordings" element={<ProtectedRoute role="ADMIN"><AdminRecordingHistory /></ProtectedRoute>} />
+      </Route>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
+  );
+}

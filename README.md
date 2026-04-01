@@ -1,43 +1,75 @@
-# Surkahsa LMS Admin App
+# React + TypeScript + Vite
 
-## Getting Started
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-This is a Learning Management System admin application built with Vite, TypeScript, and Tailwind CSS.
+Currently, two official plugins are available:
 
-### Prerequisites
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-You need Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## React Compiler
 
-Follow these steps:
+The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
 
-### Installation
+Note: This will impact Vite dev & build performances.
 
-```sh
-# Clone the repository
-git clone <YOUR_GIT_URL>
+## Expanding the ESLint configuration
 
-# Navigate to the project directory
-cd surkahsa-lms-admin
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-# Install dependencies
-npm i
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-# Start the development server
-npm run dev
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-## Technologies Used
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run build:dev` - Build in development mode
-- `npm run lint` - Run ESLint
-- `npm run preview` - Preview production build
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
